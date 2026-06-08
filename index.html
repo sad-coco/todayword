@@ -527,6 +527,7 @@ function buildBoard(){
 }
 
 function buildKeyboard(){
+  keyEls={};
   const layout=[
     ['ㅂ','ㅈ','ㄷ','ㄱ','ㅅ','ㅛ','ㅕ','ㅑ'],
     ['ㅁ','ㄴ','ㅇ','ㄹ','ㅎ','ㅗ','ㅓ','ㅏ','ㅣ'],
@@ -734,6 +735,7 @@ async function init(){
   words=await loadAnswerWords();
   guessWords=await loadGuessWords();
   if(!words.length){messageEl.textContent='단어 목록을 불러올 수 없습니다.';return;}
+  gameMode='daily';
   const idx=getDailyIndex(words.length);
   answer=words[idx];
   answerJamos=decompose(answer);
@@ -742,14 +744,27 @@ async function init(){
   if(saved){
     try{
       const data=JSON.parse(saved);
-      if(data.date===today&&data.answer===answer&&data.gameMode!=='random'){
+      if(data.date===today&&data.answer===answer){
         gameMode=data.gameMode||'daily';
         row=data.row;results=data.results||[];gameOver=data.gameOver;
+        const keyStates={};
         data.board.forEach((jamos,r)=>{
           jamos.forEach((j,r2)=>{
             const cell=document.querySelector(`.cell[data-row="${r}"][data-col="${r2}"]`);
-            cell.textContent=j;cell.classList.add(data.states[r][r2]);
+            cell.textContent=j;
+            const state=data.states[r][r2];
+            if(state) cell.classList.add(state);
+            if(j&&state){
+              const rank={absent:1,present:2,correct:3};
+              const oldRank=keyStates[j]?rank[keyStates[j]]:0;
+              if(rank[state]>oldRank) keyStates[j]=state;
+            }
           });
+        });
+        Object.entries(keyStates).forEach(([key,state])=>{
+          if(keyEls[key]&&state){
+            keyEls[key].classList.add(state);
+          }
         });
         if(!gameOver) currentJamos=data.current||[];
         else messageEl.textContent=data.won?'축하합니다!':'정답: '+answer;
