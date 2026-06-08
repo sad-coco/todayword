@@ -41,13 +41,13 @@
     .key:active{transform:scale(.95)}
     .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:100;align-items:center;justify-content:center;padding:16px}
     @media(max-width:520px){
-      .board{width:220px;max-width:100%;max-height:220px;gap:2px;}
+      .board{width:220px;max-width:100%;max-height:200px;gap:2px;}
       .row{gap:2px}
-      .keyboard{max-width:100%;flex:0 0 220px;padding:10px 10px 12px;}
+      .keyboard{max-width:100%;flex:0 0 240px;padding:10px 10px 12px;}
       .cell{font-size:13px}
-      .key{max-width:32px;height:46px;font-size:14px}
-      .key.enter{max-width:68px}
-      .key.back{max-width:56px}
+      .key{max-width:34px;height:48px;font-size:15px}
+      .key.enter{max-width:72px}
+      .key.back{max-width:58px}
     }
     .modal-overlay.show{display:flex}
     .modal{background:var(--white);border-radius:16px;padding:24px 20px;max-width:360px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.2)}
@@ -687,14 +687,15 @@ function buildShareText(includeTitle=true){
   if(includeTitle) text=`오늘의 단어 ${date}\n`;
   text+=won?`${results.length}/6\n`:`X/6\n`;
   text+=lines.join('\n');
-  text+='\n\n#오늘의단어 #카카오워들';
+  const url = location.href;
+  text += `\n\n${url}`;
   return text;
 }
 
 async function shareResult(){
   const text=buildShareText();
   if(navigator.share){
-    try{await navigator.share({title:'오늘의 단어',text});return;}catch(e){}
+    try{await navigator.share({title:'오늘의 단어',text,url:location.href});return;}catch(e){}
   }
   try{
     await navigator.clipboard.writeText(text);
