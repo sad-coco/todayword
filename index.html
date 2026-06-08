@@ -16,9 +16,9 @@
     header h1{font-size:18px;font-weight:700}
     .header-btns{display:flex;gap:8px}
     .icon-btn{width:36px;height:36px;border:none;border-radius:50%;background:rgba(60,30,30,.1);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center}
-    main{flex:1;display:flex;flex-direction:column;align-items:center;padding:16px 12px 8px;max-width:480px;margin:0 auto;width:100%}
+    main{flex:1;display:flex;flex-direction:column;align-items:center;padding:16px 12px 8px;max-width:528px;margin:0 auto;width:100%}
     .info{text-align:center;font-size:13px;color:#666;margin-bottom:12px;line-height:1.5}
-    .board{display:grid;grid-template-rows:repeat(6,1fr);gap:6px;margin-bottom:12px}
+    .board{display:grid;grid-template-rows:repeat(6,1fr);gap:6px;margin:0 auto 12px;width:min(100%,528px)}
     .row{display:grid;grid-template-columns:repeat(5,1fr);gap:5px}
     .cell{aspect-ratio:1;border:2px solid var(--border);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:clamp(18px,5.5vw,24px);font-weight:700;background:var(--white);transition:transform .15s,border-color .2s,background .2s,color .2s}
     .cell.filled{border-color:#999}
@@ -29,7 +29,7 @@
     .cell.absent{background:var(--gray);border-color:var(--gray);color:#fff}
     .cell.current{border-color:var(--kakao-dark)}
     .message{min-height:24px;font-size:14px;font-weight:600;text-align:center;margin-bottom:8px;color:#c0392b}
-    .keyboard{width:100%;max-width:480px;padding:8px 6px 16px;background:var(--white);border-top:1px solid var(--border)}
+    .keyboard{width:100%;max-width:528px;margin:0 auto;padding:8px 6px 16px;background:var(--white);border-top:1px solid var(--border)}
     .kb-row{display:flex;justify-content:center;gap:4px;margin-bottom:5px}
     .key{min-width:0;flex:1;max-width:34px;height:44px;border:none;border-radius:6px;background:#E8E8E8;font-size:15px;font-weight:600;color:var(--kakao-dark);cursor:pointer;user-select:none;-webkit-tap-highlight-color:transparent}
     .key.wide{flex:1.6;max-width:56px;font-size:12px}
@@ -121,7 +121,11 @@ const JUNG=['ㅏ','ㅐ','ㅑ','ㅒ','ㅓ','ㅔ','ㅕ','ㅖ','ㅗ','ㅘ','ㅙ','�
 const JONG=['','ㄱ','ㄲ','ㄳ','ㄴ','ㄵ','ㄶ','ㄷ','ㄹ','ㄺ','ㄻ','ㄼ','ㄽ','ㄾ','ㄿ','ㅀ','ㅁ','ㅂ','ㅄ','ㅅ','ㅆ','ㅇ','ㅈ','ㅉ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'];
 const BASIC_VOWELS=['ㅏ','ㅑ','ㅓ','ㅕ','ㅗ','ㅛ','ㅜ','ㅠ','ㅡ','ㅣ'];
 const JUNG_SPLIT={ㅐ:['ㅏ','ㅣ'],ㅒ:['ㅑ','ㅣ'],ㅔ:['ㅓ','ㅣ'],ㅖ:['ㅕ','ㅣ'],ㅘ:['ㅗ','ㅏ'],ㅙ:['ㅗ','ㅏ','ㅣ'],ㅚ:['ㅗ','ㅣ'],ㅝ:['ㅜ','ㅓ'],ㅞ:['ㅜ','ㅓ','ㅣ'],ㅟ:['ㅜ','ㅣ'],ㅢ:['ㅡ','ㅣ']};
+const CHO_SPLIT={ㄲ:['ㄱ','ㄱ'],ㄸ:['ㄷ','ㄷ'],ㅃ:['ㅂ','ㅂ'],ㅆ:['ㅅ','ㅅ'],ㅉ:['ㅈ','ㅈ']};
 const JONG_SPLIT={ㄳ:['ㄱ','ㅅ'],ㄵ:['ㄴ','ㅈ'],ㄶ:['ㄴ','ㅎ'],ㄺ:['ㄹ','ㄱ'],ㄻ:['ㄹ','ㅁ'],ㄼ:['ㄹ','ㅂ'],ㄽ:['ㄹ','ㅅ'],ㄾ:['ㄹ','ㅌ'],ㄿ:['ㄹ','ㅍ'],ㅀ:['ㄹ','ㅎ'],ㅄ:['ㅂ','ㅅ']};
+const CHO_MERGE=[
+  {seq:['ㄱ','ㄱ'],cho:'ㄲ'},{seq:['ㄷ','ㄷ'],cho:'ㄸ'},{seq:['ㅂ','ㅂ'],cho:'ㅃ'},{seq:['ㅅ','ㅅ'],cho:'ㅆ'},{seq:['ㅈ','ㅈ'],cho:'ㅉ'}
+];
 const JUNG_MERGE=[
   {seq:['ㅗ','ㅏ','ㅣ'],jung:'ㅙ'},{seq:['ㅜ','ㅓ','ㅣ'],jung:'ㅞ'},
   {seq:['ㅗ','ㅏ'],jung:'ㅘ'},{seq:['ㅗ','ㅣ'],jung:'ㅚ'},{seq:['ㅜ','ㅓ'],jung:'ㅝ'},{seq:['ㅜ','ㅣ'],jung:'ㅟ'},
@@ -273,6 +277,7 @@ const EMBEDDED_WORDS=`학교
 환경
 상황`;
 
+function splitCho(c){return CHO_SPLIT[c]||[c];}
 function splitJung(j){return JUNG_SPLIT[j]||[j];}
 function splitJong(j){return j?JONG_SPLIT[j]||[j]:[];}
 
@@ -282,9 +287,11 @@ function decompose(text){
     const c=ch.charCodeAt(0);
     if(c>=0xAC00&&c<=0xD7A3){
       const i=c-0xAC00,cho=Math.floor(i/588),jung=Math.floor((i%588)/28),jong=i%28;
-      jamos.push(CHO[cho],...splitJung(JUNG[jung]));
+      jamos.push(...splitCho(CHO[cho]),...splitJung(JUNG[jung]));
       if(jong) jamos.push(...splitJong(JONG[jong]));
-    }else if(JAMO_SET.has(ch)) jamos.push(ch);
+    }else if(JAMO_SET.has(ch)){
+      jamos.push(...splitCho(ch));
+    }
   }
   return jamos;
 }
@@ -298,17 +305,24 @@ function makeSyllable(cho,jung,jong=''){
 function compose(jamos){
   function helper(rest,acc){
     if(!rest.length) return acc;
-    if(!CHO.includes(rest[0])) return null;
-    const cho=rest[0],tail=rest.slice(1);
-    for(const jm of JUNG_MERGE){
-      if(!startsWith(tail,jm.seq)) continue;
-      const afterJung=1+jm.seq.length;
-      const s2=makeSyllable(cho,jm.jung);
-      if(s2){const next=helper(rest.slice(afterJung),acc+s2);if(next!==null) return next;}
-      for(const jgm of JONG_MERGE){
-        if(!startsWith(rest.slice(afterJung),jgm.seq)) continue;
-        const s3=makeSyllable(cho,jm.jung,jgm.jong);
-        if(s3){const next=helper(rest.slice(afterJung+jgm.seq.length),acc+s3);if(next!==null) return next;}
+    const choCandidates=[];
+    if(CHO.includes(rest[0])) choCandidates.push({cho:rest[0],len:1});
+    for(const cm of CHO_MERGE){
+      if(startsWith(rest,cm.seq)) choCandidates.push({cho:cm.cho,len:cm.seq.length});
+    }
+    if(!choCandidates.length) return null;
+    for(const {cho, len:choLen} of choCandidates){
+      const tail=rest.slice(choLen);
+      for(const jm of JUNG_MERGE){
+        if(!startsWith(tail,jm.seq)) continue;
+        const afterJung=choLen+jm.seq.length;
+        const s2=makeSyllable(cho,jm.jung);
+        if(s2){const next=helper(rest.slice(afterJung),acc+s2);if(next!==null) return next;}
+        for(const jgm of JONG_MERGE){
+          if(!startsWith(rest.slice(afterJung),jgm.seq)) continue;
+          const s3=makeSyllable(cho,jm.jung,jgm.jong);
+          if(s3){const next=helper(rest.slice(afterJung+jgm.seq.length),acc+s3);if(next!==null) return next;}
+        }
       }
     }
     return null;
@@ -316,8 +330,13 @@ function compose(jamos){
   return helper(jamos,'')??'';
 }
 
+function isFiveCellWord(word){
+  const jamos=decompose(word);
+  return jamos.length===COLS && compose(jamos)===word;
+}
+
 function parseWords(text){
-  return [...new Set(text.split(/\r?\n/).map(w=>w.trim()).filter(w=>w&&/^[\uAC00-\uD7A3]+$/.test(w)&&decompose(w).length===COLS))];
+  return [...new Set(text.split(/\r?\n/).map(w=>w.trim()).filter(w=>w&&/^[\uAC00-\uD7A3]+$/.test(w)&&isFiveCellWord(w)))];
 }
 
 const EMBEDDED_GUESS=`가방
@@ -574,8 +593,9 @@ function onKey(key){
   }
   if(key==='Enter'){submitGuess();return;}
   if(!JAMO_SET.has(key))return;
-  if(currentJamos.length>=COLS){showToast('5칸이 가득 찼어요');return;}
-  currentJamos.push(key);
+  const nextJamos=CHO_SPLIT[key] ? splitCho(key) : [key];
+  if(currentJamos.length+nextJamos.length>COLS){showToast('5칸이 가득 찼어요');return;}
+  currentJamos.push(...nextJamos);
   updateCurrentRow();
   messageEl.textContent='';
 }
@@ -694,10 +714,18 @@ function resetBoard(){
   messageEl.textContent='';
 }
 
+function randomIndex(len){
+  const timeFactor = (Date.now() % 1000) / 1000;
+  const rand = (typeof crypto !== 'undefined' && crypto.getRandomValues)
+    ? crypto.getRandomValues(new Uint32Array(1))[0] / 0x100000000
+    : Math.random();
+  return Math.floor(((rand + timeFactor) % 1) * len);
+}
+
 function pickRandomAnswer(){
   if(words.length===1) return words[0];
   let next;
-  do{next=words[Math.floor(Math.random()*words.length)];}while(next===answer);
+  do{next=words[randomIndex(words.length)];}while(next===answer);
   return next;
 }
 
