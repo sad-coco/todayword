@@ -687,8 +687,6 @@ function buildShareText(includeTitle=true){
   if(includeTitle) text=`오늘의 단어 ${date}\n`;
   text+=won?`${results.length}/6\n`:`X/6\n`;
   text+=lines.join('\n');
-  const url = location.href;
-  text += `\n\n${url}`;
   return text;
 }
 
