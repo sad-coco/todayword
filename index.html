@@ -326,7 +326,7 @@ async function createNextSharedEntry(){
 }
 
 async function claimSharedWord(){
-  if(!firebaseReady||!answer) return;
+  if(!firebaseReady||!answer) return {committed:false, firstSolverName:''};
   const name=loadPlayerName()||'익명';
   const rootRef=firebaseDb.ref(SHARED_DB_PATH);
   try{
@@ -354,16 +354,29 @@ async function claimSharedWord(){
         }
       };
     });
-    const committed=result.committed;
+    const committed=!!result.committed;
     const root=result.snapshot.val();
-    const currentId=root?.[SHARED_CURRENT_ID];
-    const entry=root?.[SHARED_ENTRIES]?.[currentId];
-    if(committed && entry?.word===nextWord){
-      showToast('첫 정답자 기록이 서버에 저장되었습니다! 다음 문제가 등록되었습니다.');
-      showSharedInfo(entry);
+    // determine who solved the entry with this word (if any)
+    let solvedByName='';
+    if(root && root[SHARED_ENTRIES]){
+      const entries=root[SHARED_ENTRIES];
+      for(const k of Object.keys(entries)){
+        const e=entries[k];
+        if(e && e.word===answer && e.solved){ solvedByName=e.solvedBy||''; break; }
+      }
     }
+    firstSolverName=solvedByName;
+    isFirstSolver = committed && solvedByName===name;
+    if(committed){
+      showToast('첫 정답자 기록이 서버에 저장되었습니다! 다음 문제가 등록되었습니다.');
+      const currentId=root?.[SHARED_CURRENT_ID];
+      const entry=root?.[SHARED_ENTRIES]?.[currentId];
+      if(entry) showSharedInfo(entry);
+    }
+    return {committed, firstSolverName: solvedByName};
   }catch(e){
     console.warn('공유 정답 기록 실패',e);
+    return {committed:false, firstSolverName:''};
   }
 }
 
@@ -789,56 +802,41 @@ const messageEl=document.getElementById('message');
 const keyboardEl=document.getElementById('keyboard');
 const toastEl=document.getElementById('toast');
 
-function showToast(msg){
-  toastEl.textContent=msg;toastEl.classList.add('show');
-  setTimeout(()=>toastEl.classList.remove('show'),1800);
-}
-
-function buildBoard(){
-  boardEl.innerHTML='';
-  for(let r=0;r<ROWS;r++){
-    const rowEl=document.createElement('div');
-    rowEl.className='row';
-    rowEl.dataset.row=r;
-    for(let c=0;c<COLS;c++){
-      const cell=document.createElement('div');
-      cell.className='cell';
-      cell.dataset.row=r;cell.dataset.col=c;
-      rowEl.appendChild(cell);
-    }
-    boardEl.appendChild(rowEl);
+async function submitGuess(){
+  if(gameOver) return;
+  if(currentJamos.length!==COLS){showToast('5칸을 채워주세요');return;}
+  const word=compose(currentJamos);
+  if(!word){showToast('올바른 단어가 아니에요');shakeRow();return;}
+  if(!isValidWord(word)){showToast('사전에 없는 단어예요');shakeRow();return;}
+  const guessJamos=[...currentJamos];
+  const evalRes=evaluate(guessJamos,answerJamos);
+  results.push(evalRes.map(s=>s==='correct'?'correct':s==='present'?'present':'absent'));
+  const cells=[];
+  for(let c=0;c<COLS;c++){
+    const cell=document.querySelector(`.cell[data-row="${row}"][data-col="${c}"]`);
+    cells.push(cell);
+    cell.classList.remove('current');
+    setTimeout(()=>{
+      cell.classList.add('flip',evalRes[c]);
+      cell.classList.remove('filled');
+      const k=guessJamos[c];
+      if(keyEls[k]){
+        const prev=keyEls[k].classList;
+        const rank={absent:1,present:2,correct:3};
+        const cur=evalRes[c];
+        const old=prev.contains('correct')?'correct':prev.contains('present')?'present':prev.contains('absent')?'absent':'';
+        const oldRank=old?rank[old]:0;
+        if(rank[cur]>oldRank){keyEls[k].classList.remove('correct','present','absent');keyEls[k].classList.add(cur);}
+      }
+    },c*300);
   }
-}
-
-function buildKeyboard(){
-  keyEls={};
-  const layout=[
-    ['ㅂ','ㅈ','ㄷ','ㄱ','ㅅ','ㅛ','ㅕ','ㅑ'],
-    ['ㅁ','ㄴ','ㅇ','ㄹ','ㅎ','ㅗ','ㅓ','ㅏ','ㅣ'],
-    ['ㅋ','ㅌ','ㅊ','ㅍ','ㅠ','ㅜ','ㅡ']
-  ];
-  keyboardEl.innerHTML='';
-  layout.forEach(row=>{
-    const rowEl=document.createElement('div');
-    rowEl.className='kb-row';
-    row.forEach(k=>{
-      const btn=document.createElement('button');
-      btn.className='key';btn.textContent=k;btn.dataset.key=k;
-      btn.addEventListener('click',()=>onKey(k));
-      keyEls[k]=btn;rowEl.appendChild(btn);
-    });
-    keyboardEl.appendChild(rowEl);
-  });
-  const bottom=document.createElement('div');
-  bottom.className='kb-row';
-  const back=document.createElement('button');
-  back.className='key back';back.textContent='⌫';
-  back.addEventListener('click',()=>onKey('Backspace'));
-  const enter=document.createElement('button');
-  enter.className='key enter';enter.textContent='확인';
-  enter.addEventListener('click',()=>onKey('Enter'));
-  bottom.append(back,enter);
-  keyboardEl.appendChild(bottom);
+  const won=evalRes.every(s=>s==='correct');
+  setTimeout(()=>{
+    if(won) endGame(true);
+    else if(row>=ROWS-1) endGame(false);
+    else{row++;currentJamos=[];updateCurrentRow();}
+    saveProgress();
+  },COLS*300+200);
 }
 
 function updateCurrentRow(){
@@ -900,31 +898,9 @@ async function submitGuess(){
         }
       };
     });
-    const committed=result.committed;
-    const root=result.snapshot.val();
-    // determine who solved the entry with this word (if any)
-    let solvedByName='';
-    if(root && root[SHARED_ENTRIES]){
-      const entries=root[SHARED_ENTRIES];
-      for(const k of Object.keys(entries)){
-        const e=entries[k];
-        if(e && e.word===answer && e.solved){ solvedByName=e.solvedBy||''; break; }
-      }
-    }
-    firstSolverName=solvedByName;
-    isFirstSolver = committed && solvedByName===name;
-    if(committed){
-      showToast('첫 정답자 기록이 서버에 저장되었습니다! 다음 문제가 등록되었습니다.');
-      // show the next current entry (transaction advanced to next)
-      const currentId=root?.[SHARED_CURRENT_ID];
-      const entry=root?.[SHARED_ENTRIES]?.[currentId];
-      if(entry) showSharedInfo(entry);
-    }
-    return {committed, firstSolverName: solvedByName};
 function shakeRow(){
   const rowEl=document.querySelector(`.row[data-row="${row}"]`);
-    return {committed:false, firstSolverName:''};
-  }
+  rowEl.style.animation='none';
   void rowEl.offsetWidth;
   rowEl.style.animation='shake .4s';
 }
@@ -933,7 +909,7 @@ const shakeStyle=document.createElement('style');
 shakeStyle.textContent='@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}';
 document.head.appendChild(shakeStyle);
 
-function endGame(won){
+async function endGame(won){
   gameOver=true;
   const stats=loadStats();
   stats.played++;
