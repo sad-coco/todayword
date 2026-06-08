@@ -11,12 +11,12 @@
       --green:#6AAA64;--yellow:#E8B931;--gray:#B0B3B8;--gray-dark:#787C7E;
       --border:#D9D9D9;--shadow:0 2px 8px rgba(0,0,0,.08);
     }
-    body{font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;background:var(--bg);color:var(--kakao-dark);height:100vh;display:flex;flex-direction:column;touch-action:manipulation;overflow:hidden}
+    body{font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;background:var(--bg);color:var(--kakao-dark);min-height:100dvh;display:flex;flex-direction:column;touch-action:manipulation;overflow:hidden}
     header{background:var(--kakao);padding:14px 16px;display:flex;align-items:center;justify-content:space-between;box-shadow:var(--shadow);position:sticky;top:0;z-index:10}
     header h1{font-size:18px;font-weight:700}
     .header-btns{display:flex;gap:8px}
     .icon-btn{width:36px;height:36px;border:none;border-radius:50%;background:rgba(60,30,30,.1);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center}
-    main{flex:1 1 auto;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:12px 10px 8px;max-width:360px;margin:0 auto;width:100%;min-height:0;overflow:hidden}
+    main{flex:1 1 auto;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:10px 8px 6px;max-width:360px;margin:0 auto;width:100%;min-height:0;overflow:hidden}
     .info{text-align:center;font-size:12px;color:#666;margin-bottom:10px;line-height:1.4}
     .board{flex:1 1 auto;display:grid;grid-template-rows:repeat(6,1fr);gap:3px;margin:0 auto 10px;width:260px;max-width:100%;min-height:0;max-height:240px}
     .row{display:grid;grid-template-columns:repeat(5,1fr);gap:3px;width:100%}
@@ -41,12 +41,13 @@
     .key:active{transform:scale(.95)}
     .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:100;align-items:center;justify-content:center;padding:16px}
     @media(max-width:520px){
-      .board{width:260px;max-width:100%;max-height:calc(100vh - 240px);}
-      .keyboard{max-width:100%;flex:0 0 180px;padding:8px 8px 10px;}
-      .cell{font-size:14px}
-      .key{max-width:28px;height:40px;font-size:13px}
-      .key.enter{max-width:60px}
-      .key.back{max-width:50px}
+      .board{width:220px;max-width:100%;max-height:220px;gap:2px;}
+      .row{gap:2px}
+      .keyboard{max-width:100%;flex:0 0 220px;padding:10px 10px 12px;}
+      .cell{font-size:13px}
+      .key{max-width:32px;height:46px;font-size:14px}
+      .key.enter{max-width:68px}
+      .key.back{max-width:56px}
     }
     .modal-overlay.show{display:flex}
     .modal{background:var(--white);border-radius:16px;padding:24px 20px;max-width:360px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.2)}
@@ -723,11 +724,16 @@ function resetBoard(){
 }
 
 function randomIndex(len){
-  const timeFactor = (Date.now() % 1000) / 1000;
-  const rand = (typeof crypto !== 'undefined' && crypto.getRandomValues)
+  if(len<=1) return 0;
+  const now = Date.now();
+  const perf = typeof performance !== 'undefined' && performance.now ? performance.now() : 0;
+  const timeFactor = ((now % 1000) + (perf % 1)) / 1000;
+  const cryptoRand = (typeof crypto !== 'undefined' && crypto.getRandomValues)
     ? crypto.getRandomValues(new Uint32Array(1))[0] / 0x100000000
     : Math.random();
-  return Math.floor(((rand + timeFactor) % 1) * len);
+  const extraRand = Math.random();
+  const seed = (cryptoRand + timeFactor + extraRand) % 1;
+  return Math.floor(seed * len);
 }
 
 function pickRandomAnswer(){
@@ -771,9 +777,8 @@ async function init(){
   words=await loadAnswerWords();
   guessWords=await loadGuessWords();
   if(!words.length){messageEl.textContent='단어 목록을 불러올 수 없습니다.';return;}
-  gameMode='daily';
-  const idx=getDailyIndex(words.length);
-  answer=words[idx];
+  gameMode='random';
+  answer=pickRandomAnswer();
   answerJamos=decompose(answer);
   const saved=localStorage.getItem('kakaoWordleToday');
   const today=new Date().toDateString();
