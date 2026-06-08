@@ -29,12 +29,13 @@
     .cell.absent{background:var(--gray);border-color:var(--gray);color:#fff}
     .cell.current{border-color:var(--kakao-dark)}
     .message{min-height:24px;font-size:14px;font-weight:600;text-align:center;margin-bottom:8px;color:#c0392b}
-    .keyboard{width:100%;max-width:360px;margin:0 auto;padding:8px 8px 12px;background:var(--white);border-top:1px solid var(--border);flex:0 0 180px;display:flex;flex-direction:column;justify-content:center}
-    .kb-row{display:flex;justify-content:center;gap:4px;margin-bottom:5px}
-    .key{min-width:0;flex:1;max-width:34px;height:44px;border:none;border-radius:6px;background:#E8E8E8;font-size:15px;font-weight:600;color:var(--kakao-dark);cursor:pointer;user-select:none;-webkit-tap-highlight-color:transparent}
-    .key.wide{flex:1.6;max-width:56px;font-size:12px}
-    .key.enter{flex:2;max-width:72px;background:var(--kakao);font-size:13px}
-    .key.back{flex:1.5;max-width:60px;font-size:18px}
+    .message.congrats{background:linear-gradient(135deg,#ffe066,#ff8a65);color:#7f1d1d;padding:12px 16px;border-radius:16px;box-shadow:0 18px 36px rgba(255,138,101,.24);border:1px solid rgba(255,255,255,.8);display:inline-flex;align-items:center;justify-content:center;min-height:auto;margin-bottom:12px;text-shadow:0 1px 2px rgba(0,0,0,.12);}
+    .keyboard{width:100%;max-width:360px;margin:0 auto;padding:10px 10px 14px;background:var(--white);border-top:1px solid var(--border);flex:0 0 auto;display:flex;flex-direction:column;justify-content:center;overflow:hidden}
+    .kb-row{display:flex;justify-content:center;gap:5px;margin-bottom:6px;min-width:0}
+    .key{min-width:0;flex:1 1 0;max-width:44px;height:42px;border:none;border-radius:10px;background:#E8E8E8;font-size:15px;font-weight:700;color:var(--kakao-dark);cursor:pointer;user-select:none;-webkit-tap-highlight-color:transparent;box-shadow:0 4px 10px rgba(0,0,0,.08);transition:transform .15s,background .2s}
+    .key.wide{flex:1.5;max-width:68px;font-size:13px}
+    .key.enter{flex:2;max-width:80px;background:var(--kakao);font-size:13px;color:#3C1E1E}
+    .key.back{flex:1.4;max-width:70px;font-size:17px}
     .key.correct{background:var(--green);color:#fff}
     .key.present{background:var(--yellow);color:#fff}
     .key.absent{background:var(--gray-dark);color:#fff}
@@ -43,11 +44,11 @@
     @media(max-width:520px){
       .board{width:220px;max-width:100%;max-height:200px;gap:2px;}
       .row{gap:2px}
-      .keyboard{max-width:100%;flex:0 0 240px;padding:10px 10px 12px;}
+      .keyboard{max-width:100%;flex:0 0 auto;padding:10px 10px 12px;}
       .cell{font-size:13px}
-      .key{max-width:34px;height:48px;font-size:15px}
-      .key.enter{max-width:72px}
-      .key.back{max-width:58px}
+      .key{max-width:44px;height:42px;font-size:15px}
+      .key.enter{max-width:76px}
+      .key.back{max-width:64px}
     }
     .modal-overlay.show{display:flex}
     .modal{background:var(--white);border-radius:16px;padding:24px 20px;max-width:360px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.2)}
@@ -675,6 +676,7 @@ function endGame(won){
   document.getElementById('resultEmoji').textContent=buildShareText(won,false);
   document.getElementById('resultModal').classList.add('show');
   messageEl.textContent=won?'축하합니다!':'정답: '+answer;
+  messageEl.classList.toggle('congrats', won);
 }
 
 function buildShareText(includeTitle=true){
@@ -687,6 +689,8 @@ function buildShareText(includeTitle=true){
   if(includeTitle) text=`오늘의 단어 ${date}\n`;
   text+=won?`${results.length}/6\n`:`X/6\n`;
   text+=lines.join('\n');
+  const url = location.href;
+  text += `\n\n${url}`;
   return text;
 }
 
@@ -720,6 +724,7 @@ function resetBoard(){
   row=0;currentJamos=[];gameOver=false;results=[];
   document.querySelectorAll('.cell').forEach(c=>{c.textContent='';c.className='cell';});
   messageEl.textContent='';
+  messageEl.classList.remove('congrats');
 }
 
 function randomIndex(len){
@@ -807,7 +812,10 @@ async function init(){
           }
         });
         if(!gameOver) currentJamos=data.current||[];
-        else messageEl.textContent=data.won?'축하합니다!':'정답: '+answer;
+        else {
+          messageEl.textContent=data.won?'축하합니다!':'정답: '+answer;
+          messageEl.classList.toggle('congrats', !!data.won);
+        }
       }
     }catch(e){}
   }
