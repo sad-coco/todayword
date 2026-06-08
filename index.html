@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>오늘의 단어</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --kakao:#FEE500;--kakao-dark:#3C1E1E;--bg:#F5F5F5;--white:#FFF;
+      --green:#6AAA64;--yellow:#E8B931;--gray:#B0B3B8;--gray-dark:#787C7E;
+      --border:#D9D9D9;--shadow:0 2px 8px rgba(0,0,0,.08);
+    }
+    body{font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;background:var(--bg);color:var(--kakao-dark);min-height:100dvh;display:flex;flex-direction:column;touch-action:manipulation}
+    header{background:var(--kakao);padding:14px 16px;display:flex;align-items:center;justify-content:space-between;box-shadow:var(--shadow);position:sticky;top:0;z-index:10}
+    header h1{font-size:18px;font-weight:700}
+    .header-btns{display:flex;gap:8px}
+    .icon-btn{width:36px;height:36px;border:none;border-radius:50%;background:rgba(60,30,30,.1);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+    main{flex:1;display:flex;flex-direction:column;align-items:center;padding:16px 12px 8px;max-width:480px;margin:0 auto;width:100%}
+    .info{text-align:center;font-size:13px;color:#666;margin-bottom:12px;line-height:1.5}
+    .board{display:grid;grid-template-rows:repeat(6,1fr);gap:6px;margin-bottom:12px}
+    .row{display:grid;grid-template-columns:repeat(5,1fr);gap:5px}
+    .cell{aspect-ratio:1;border:2px solid var(--border);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:clamp(18px,5.5vw,24px);font-weight:700;background:var(--white);transition:transform .15s,border-color .2s,background .2s,color .2s}
+    .cell.filled{border-color:#999}
+    .cell.flip{animation:flip .5s ease}
+    @keyframes flip{0%{transform:rotateX(0)}50%{transform:rotateX(90deg)}100%{transform:rotateX(0)}}
+    .cell.correct{background:var(--green);border-color:var(--green);color:#fff}
+    .cell.present{background:var(--yellow);border-color:var(--yellow);color:#fff}
+    .cell.absent{background:var(--gray);border-color:var(--gray);color:#fff}
+    .cell.current{border-color:var(--kakao-dark)}
+    .message{min-height:24px;font-size:14px;font-weight:600;text-align:center;margin-bottom:8px;color:#c0392b}
+    .keyboard{width:100%;max-width:480px;padding:8px 6px 16px;background:var(--white);border-top:1px solid var(--border)}
+    .kb-row{display:flex;justify-content:center;gap:4px;margin-bottom:5px}
+    .key{min-width:0;flex:1;max-width:34px;height:44px;border:none;border-radius:6px;background:#E8E8E8;font-size:15px;font-weight:600;color:var(--kakao-dark);cursor:pointer;user-select:none;-webkit-tap-highlight-color:transparent}
+    .key.wide{flex:1.6;max-width:56px;font-size:12px}
+    .key.enter{flex:2;max-width:72px;background:var(--kakao);font-size:13px}
+    .key.back{flex:1.5;max-width:60px;font-size:18px}
+    .key.correct{background:var(--green);color:#fff}
+    .key.present{background:var(--yellow);color:#fff}
+    .key.absent{background:var(--gray-dark);color:#fff}
+    .key:active{transform:scale(.95)}
+    .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:100;align-items:center;justify-content:center;padding:16px}
+    .modal-overlay.show{display:flex}
+    .modal{background:var(--white);border-radius:16px;padding:24px 20px;max-width:360px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.2)}
+    .modal h2{font-size:20px;margin-bottom:16px;text-align:center}
+    .modal-close{position:absolute;top:12px;right:16px;background:none;border:none;font-size:24px;cursor:pointer;color:#666}
+    .modal-wrap{position:relative}
+    .stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:20px;text-align:center}
+    .stat-num{font-size:28px;font-weight:700}
+    .stat-label{font-size:11px;color:#666;margin-top:4px}
+    .dist{margin-bottom:16px}
+    .dist-row{display:flex;align-items:center;gap:8px;margin-bottom:4px;font-size:13px}
+    .dist-bar{flex:1;height:20px;background:var(--bg);border-radius:4px;overflow:hidden;position:relative}
+    .dist-fill{height:100%;background:var(--kakao-dark);border-radius:4px;min-width:8px;transition:width .3s}
+    .btn-primary{width:100%;padding:14px;border:none;border-radius:10px;background:var(--kakao);font-size:15px;font-weight:700;cursor:pointer;margin-top:8px}
+    .btn-secondary{width:100%;padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--white);font-size:14px;cursor:pointer;margin-top:8px}
+    .result-emoji{font-family:monospace;font-size:20px;letter-spacing:2px;text-align:center;margin:12px 0}
+    .help-list{font-size:14px;line-height:1.8;padding-left:18px}
+    .help-demo{display:flex;gap:4px;margin:8px 0 16px}
+    .help-cell{width:36px;height:36px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;border:2px solid var(--border)}
+    .toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:rgba(60,30,30,.9);color:#fff;padding:10px 20px;border-radius:20px;font-size:14px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:200}
+    .toast.show{opacity:1}
+    @media(max-width:360px){.key{height:40px;font-size:13px}.cell{font-size:16px}}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>오늘의 단어</h1>
+    <div class="header-btns">
+      <button class="icon-btn" id="btnNew" title="새 게임">↻</button>
+      <button class="icon-btn" id="btnHelp" title="도움말">?</button>
+      <button class="icon-btn" id="btnStats" title="통계">📊</button>
+    </div>
+  </header>
+  <main>
+    <p class="info">자모 5칸 · 6번의 기회<br>오늘의 단어를 맞혀보세요!</p>
+    <div class="board" id="board"></div>
+    <p class="message" id="message"></p>
+  </main>
+  <div class="keyboard" id="keyboard"></div>
+  <div class="toast" id="toast"></div>
+  <div class="modal-overlay" id="statsModal">
+    <div class="modal modal-wrap">
+      <button class="modal-close" data-close>&times;</button>
+      <h2>통계</h2>
+      <div class="stats-grid" id="statsGrid"></div>
+      <div class="dist" id="distChart"></div>
+      <button class="btn-primary" id="btnShare">결과 공유</button>
+      <button class="btn-secondary" data-close>닫기</button>
+    </div>
+  </div>
+  <div class="modal-overlay" id="helpModal">
+    <div class="modal modal-wrap">
+      <button class="modal-close" data-close>&times;</button>
+      <h2>게임 방법</h2>
+      <p style="font-size:14px;margin-bottom:12px">자모를 완전 분해하여 5칸에 맞는 단어를 6번 안에 맞히세요.<br>ㅐ는 ㅏ+ㅣ, ㅔ는 ㅓ+ㅣ로 입력합니다.<br>표준국어대사전 기반 약 2만 개 단어로 검증합니다.</p>
+      <div class="help-demo"><div class="help-cell correct">ㅎ</div><div class="help-cell">ㅏ</div><div class="help-cell">ㄱ</div><div class="help-cell">ㄱ</div><div class="help-cell">ㅛ</div></div>
+      <p style="font-size:13px;margin-bottom:12px">🟩 초록: 위치와 자모 모두 일치 (예: 학교)</p>
+      <div class="help-demo"><div class="help-cell">ㅎ</div><div class="help-cell present">ㅏ</div><div class="help-cell">ㄱ</div><div class="help-cell">ㄱ</div><div class="help-cell">ㅛ</div></div>
+      <p style="font-size:13px;margin-bottom:12px">🟨 노랑: 자모는 있으나 위치 다름</p>
+      <div class="help-demo"><div class="help-cell">ㅎ</div><div class="help-cell">ㅏ</div><div class="help-cell absent">ㄱ</div><div class="help-cell">ㄱ</div><div class="help-cell">ㅛ</div></div>
+      <p style="font-size:13px">⬜ 회색: 정답에 없는 자모</p>
+      <button class="btn-primary" data-close style="margin-top:16px">시작하기</button>
+    </div>
+  </div>
+  <div class="modal-overlay" id="resultModal">
+    <div class="modal modal-wrap">
+      <button class="modal-close" data-close>&times;</button>
+      <h2 id="resultTitle">정답!</h2>
+      <p id="resultWord" style="text-align:center;font-size:24px;font-weight:700;margin:12px 0"></p>
+      <div class="result-emoji" id="resultEmoji"></div>
+      <button class="btn-primary" id="btnShareResult">결과 공유</button>
+      <button class="btn-secondary" id="btnNewFromResult">새 게임</button>
+      <button class="btn-secondary" data-close>닫기</button>
+    </div>
+  </div>
+<script src="dictionary.js"></script>
+<script>
+const CHO=['ㄱ','ㄲ','ㄴ','ㄷ','ㄸ','ㄹ','ㅁ','ㅂ','ㅃ','ㅅ','ㅆ','ㅇ','ㅈ','ㅉ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'];
+const JUNG=['ㅏ','ㅐ','ㅑ','ㅒ','ㅓ','ㅔ','ㅕ','ㅖ','ㅗ','ㅘ','ㅙ','ㅚ','ㅛ','ㅜ','ㅝ','ㅞ','ㅟ','ㅠ','ㅡ','ㅢ','ㅣ'];
+const JONG=['','ㄱ','ㄲ','ㄳ','ㄴ','ㄵ','ㄶ','ㄷ','ㄹ','ㄺ','ㄻ','ㄼ','ㄽ','ㄾ','ㄿ','ㅀ','ㅁ','ㅂ','ㅄ','ㅅ','ㅆ','ㅇ','ㅈ','ㅉ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'];
+const BASIC_VOWELS=['ㅏ','ㅑ','ㅓ','ㅕ','ㅗ','ㅛ','ㅜ','ㅠ','ㅡ','ㅣ'];
+const JUNG_SPLIT={ㅐ:['ㅏ','ㅣ'],ㅒ:['ㅑ','ㅣ'],ㅔ:['ㅓ','ㅣ'],ㅖ:['ㅕ','ㅣ'],ㅘ:['ㅗ','ㅏ'],ㅙ:['ㅗ','ㅏ','ㅣ'],ㅚ:['ㅗ','ㅣ'],ㅝ:['ㅜ','ㅓ'],ㅞ:['ㅜ','ㅓ','ㅣ'],ㅟ:['ㅜ','ㅣ'],ㅢ:['ㅡ','ㅣ']};
+const JONG_SPLIT={ㄳ:['ㄱ','ㅅ'],ㄵ:['ㄴ','ㅈ'],ㄶ:['ㄴ','ㅎ'],ㄺ:['ㄹ','ㄱ'],ㄻ:['ㄹ','ㅁ'],ㄼ:['ㄹ','ㅂ'],ㄽ:['ㄹ','ㅅ'],ㄾ:['ㄹ','ㅌ'],ㄿ:['ㄹ','ㅍ'],ㅀ:['ㄹ','ㅎ'],ㅄ:['ㅂ','ㅅ']};
+const JUNG_MERGE=[
+  {seq:['ㅗ','ㅏ','ㅣ'],jung:'ㅙ'},{seq:['ㅜ','ㅓ','ㅣ'],jung:'ㅞ'},
+  {seq:['ㅗ','ㅏ'],jung:'ㅘ'},{seq:['ㅗ','ㅣ'],jung:'ㅚ'},{seq:['ㅜ','ㅓ'],jung:'ㅝ'},{seq:['ㅜ','ㅣ'],jung:'ㅟ'},
+  {seq:['ㅡ','ㅣ'],jung:'ㅢ'},{seq:['ㅑ','ㅣ'],jung:'ㅒ'},{seq:['ㅕ','ㅣ'],jung:'ㅖ'},
+  {seq:['ㅏ','ㅣ'],jung:'ㅐ'},{seq:['ㅓ','ㅣ'],jung:'ㅔ'},
+  ...BASIC_VOWELS.map(v=>({seq:[v],jung:v}))
+];
+const JONG_MERGE=[
+  {seq:['ㄱ','ㅅ'],jong:'ㄳ'},{seq:['ㄴ','ㅈ'],jong:'ㄵ'},{seq:['ㄴ','ㅎ'],jong:'ㄶ'},
+  {seq:['ㄹ','ㄱ'],jong:'ㄺ'},{seq:['ㄹ','ㅁ'],jong:'ㄻ'},{seq:['ㄹ','ㅂ'],jong:'ㄼ'},
+  {seq:['ㄹ','ㅅ'],jong:'ㄽ'},{seq:['ㄹ','ㅌ'],jong:'ㄾ'},{seq:['ㄹ','ㅍ'],jong:'ㄿ'},
+  {seq:['ㄹ','ㅎ'],jong:'ㅀ'},{seq:['ㅂ','ㅅ'],jong:'ㅄ'},
+  ...JONG.filter(Boolean).map(j=>({seq:JONG_SPLIT[j]||[j],jong:j}))
+];
+JUNG_MERGE.sort((a,b)=>b.seq.length-a.seq.length);
+JONG_MERGE.sort((a,b)=>b.seq.length-a.seq.length);
+const JAMO_SET=new Set([...CHO,...BASIC_VOWELS]);
+function startsWith(arr,seq){return seq.every((v,i)=>arr[i]===v);}
+const ROWS=6,COLS=5;
+const STATS_KEY='kakaoWordleStats';
+const EMBEDDED_WORDS=`학교
+대박
+사랑
+친구
+감자
+딸기
+공부
+축구
+김치
+라면
+구름
+고양
+이별
+선물
+생일
+기념
+기름
+추억
+여행
+캠핑
+등산
+수영
+달리
+노래
+그림
+글씨
+연필
+가방
+운동
+독서
+영화
+게임
+바둑
+당구
+볼링
+낚시
+쿠키
+와플
+감귤
+수박
+명절
+설날
+추석
+항구
+문어
+송편
+떡국
+잡채
+숙주
+상추
+양파
+마늘
+소풍
+달빛
+햇살
+눈물
+인사
+감사
+축하
+꿈결
+별빛
+웃음
+기쁨
+슬픔
+분노
+용기
+희망
+감동
+자유
+평화
+건강
+안녕
+성공
+실패
+노력
+도전
+열정
+집중
+인내
+겸손
+정직
+친절
+배려
+존중
+신뢰
+약속
+책임
+권리
+법률
+규칙
+질서
+안전
+위험
+경고
+출발
+도착
+환영
+만남
+재회
+협력
+경쟁
+승리
+패배
+기회
+위기
+전환
+변화
+발전
+성장
+진보
+혁신
+창의
+상상
+현실
+이상
+목표
+계획
+실행
+완성
+결과
+원인
+방법
+수단
+도구
+재료
+성분
+요소
+조건
+환경
+상황`;
+
+function splitJung(j){return JUNG_SPLIT[j]||[j];}
+function splitJong(j){return j?JONG_SPLIT[j]||[j]:[];}
+
+function decompose(text){
+  const jamos=[];
+  for(const ch of text.trim()){
+    const c=ch.charCodeAt(0);
+    if(c>=0xAC00&&c<=0xD7A3){
+      const i=c-0xAC00,cho=Math.floor(i/588),jung=Math.floor((i%588)/28),jong=i%28;
+      jamos.push(CHO[cho],...splitJung(JUNG[jung]));
+      if(jong) jamos.push(...splitJong(JONG[jong]));
+    }else if(JAMO_SET.has(ch)) jamos.push(ch);
+  }
+  return jamos;
+}
+
+function makeSyllable(cho,jung,jong=''){
+  const ci=CHO.indexOf(cho),ji=JUNG.indexOf(jung),ki=JONG.indexOf(jong);
+  if(ci<0||ji<0||ki<0) return null;
+  return String.fromCharCode(0xAC00+ci*588+ji*28+ki);
+}
+
+function compose(jamos){
+  function helper(rest,acc){
+    if(!rest.length) return acc;
+    if(!CHO.includes(rest[0])) return null;
+    const cho=rest[0],tail=rest.slice(1);
+    for(const jm of JUNG_MERGE){
+      if(!startsWith(tail,jm.seq)) continue;
+      const afterJung=1+jm.seq.length;
+      const s2=makeSyllable(cho,jm.jung);
+      if(s2){const next=helper(rest.slice(afterJung),acc+s2);if(next!==null) return next;}
+      for(const jgm of JONG_MERGE){
+        if(!startsWith(rest.slice(afterJung),jgm.seq)) continue;
+        const s3=makeSyllable(cho,jm.jung,jgm.jong);
+        if(s3){const next=helper(rest.slice(afterJung+jgm.seq.length),acc+s3);if(next!==null) return next;}
+      }
+    }
+    return null;
+  }
+  return helper(jamos,'')??'';
+}
+
+function parseWords(text){
+  return [...new Set(text.split(/\r?\n/).map(w=>w.trim()).filter(w=>w&&/^[\uAC00-\uD7A3]+$/.test(w)&&decompose(w).length===COLS))];
+}
+
+const EMBEDDED_GUESS=`가방
+가족
+각도
+갈비
+감기
+감사
+감자
+개구
+개미
+거실
+경고
+고양
+고통
+공부
+과자
+구름
+국가
+국수
+규칙
+그늘
+그림
+근무
+글씨
+기념
+기록
+기름
+기물
+기분
+기쁨
+기온
+기운
+기적
+기침
+기회
+김치
+나뭇
+나팔
+낚시
+남녀
+노래
+노력
+농구
+달리
+당구
+대나
+더위
+도전
+도착
+독서
+딸기
+라면
+마늘
+마법
+마을
+마침
+모래
+모험
+목표
+무게
+무껍
+문어
+물고
+바둑
+바람
+바위
+발표
+밤하
+배려
+보험
+부엌
+분노
+비밀
+비옷
+비용
+사랑
+사진
+사탕
+상추
+서랍
+세수
+소금
+소식
+소풍
+수단
+수박
+수영
+수첩
+숙주
+승리
+시장
+신호
+아침
+양파
+엄마
+용기
+우산
+위기
+의미
+이별
+이상
+이웃
+인사
+일기
+자매
+자석
+장소
+재료
+재미
+저녁
+전기
+조건
+주문
+주민
+주의
+지갑
+지개
+진보
+질서
+추석
+추억
+축구
+축하
+친구
+하늘
+학교
+항구`;
+
+async function loadTextFile(path,fallback){
+  try{const res=await fetch(path);if(res.ok)return await res.text();}catch(e){}
+  return fallback;
+}
+
+async function loadAnswerWords(){
+  return parseWords(await loadTextFile('words.txt',EMBEDDED_WORDS));
+}
+
+async function loadGuessWords(){
+  const answer=await loadAnswerWords();
+  const set=new Set(answer);
+  if(typeof DICTIONARY_WORDS!=='undefined'){
+    DICTIONARY_WORDS.forEach(w=>set.add(w));
+  }else{
+    const dict=parseWords(await loadTextFile('dictionary.txt',''));
+    dict.forEach(w=>set.add(w));
+    parseWords(await loadTextFile('guess-words.txt',EMBEDDED_GUESS)).forEach(w=>set.add(w));
+  }
+  return set;
+}
+
+function getDailyIndex(len){
+  const d=new Date();
+  const seed=d.getFullYear()*10000+(d.getMonth()+1)*100+d.getDate();
+  let x=seed;
+  for(let i=0;i<5;i++) x=(x*9301+49297)%233280;
+  return Math.floor((x/233280)*len);
+}
+
+function evaluate(guessJamos,answerJamos){
+  const res=Array(COLS).fill('absent');
+  const remain=[...answerJamos];
+  for(let i=0;i<COLS;i++){
+    if(guessJamos[i]===answerJamos[i]){res[i]='correct';remain[i]=null;}
+  }
+  for(let i=0;i<COLS;i++){
+    if(res[i]==='correct')continue;
+    const idx=remain.indexOf(guessJamos[i]);
+    if(idx>=0){res[i]='present';remain[idx]=null;}
+  }
+  return res;
+}
+
+function loadStats(){
+  try{return JSON.parse(localStorage.getItem(STATS_KEY))||defaultStats();}catch(e){return defaultStats();}
+}
+function defaultStats(){return{played:0,won:0,streak:0,maxStreak:0,distribution:[0,0,0,0,0,0]};}
+function saveStats(s){localStorage.setItem(STATS_KEY,JSON.stringify(s));}
+
+let words=[],guessWords=new Set(),answer='',answerJamos=[],row=0,currentJamos=[],gameOver=false,results=[];
+let keyEls={},gameMode='daily';
+
+const boardEl=document.getElementById('board');
+const messageEl=document.getElementById('message');
+const keyboardEl=document.getElementById('keyboard');
+const toastEl=document.getElementById('toast');
+
+function showToast(msg){
+  toastEl.textContent=msg;toastEl.classList.add('show');
+  setTimeout(()=>toastEl.classList.remove('show'),1800);
+}
+
+function buildBoard(){
+  boardEl.innerHTML='';
+  for(let r=0;r<ROWS;r++){
+    const rowEl=document.createElement('div');
+    rowEl.className='row';
+    rowEl.dataset.row=r;
+    for(let c=0;c<COLS;c++){
+      const cell=document.createElement('div');
+      cell.className='cell';
+      cell.dataset.row=r;cell.dataset.col=c;
+      rowEl.appendChild(cell);
+    }
+    boardEl.appendChild(rowEl);
+  }
+}
+
+function buildKeyboard(){
+  const layout=[
+    ['ㅂ','ㅈ','ㄷ','ㄱ','ㅅ','ㅛ','ㅕ','ㅑ'],
+    ['ㅁ','ㄴ','ㅇ','ㄹ','ㅎ','ㅗ','ㅓ','ㅏ','ㅣ'],
+    ['ㅋ','ㅌ','ㅊ','ㅍ','ㅠ','ㅜ','ㅡ']
+  ];
+  keyboardEl.innerHTML='';
+  layout.forEach(row=>{
+    const rowEl=document.createElement('div');
+    rowEl.className='kb-row';
+    row.forEach(k=>{
+      const btn=document.createElement('button');
+      btn.className='key';btn.textContent=k;btn.dataset.key=k;
+      btn.addEventListener('click',()=>onKey(k));
+      keyEls[k]=btn;rowEl.appendChild(btn);
+    });
+    keyboardEl.appendChild(rowEl);
+  });
+  const bottom=document.createElement('div');
+  bottom.className='kb-row';
+  const back=document.createElement('button');
+  back.className='key back';back.textContent='⌫';
+  back.addEventListener('click',()=>onKey('Backspace'));
+  const enter=document.createElement('button');
+  enter.className='key enter';enter.textContent='확인';
+  enter.addEventListener('click',()=>onKey('Enter'));
+  bottom.append(back,enter);
+  keyboardEl.appendChild(bottom);
+}
+
+function updateCurrentRow(){
+  for(let c=0;c<COLS;c++){
+    const cell=document.querySelector(`.cell[data-row="${row}"][data-col="${c}"]`);
+    cell.textContent=currentJamos[c]||'';
+    cell.classList.toggle('filled',!!currentJamos[c]);
+    cell.classList.toggle('current',c===currentJamos.length&&row<ROWS);
+  }
+}
+
+function onKey(key){
+  if(gameOver)return;
+  if(key==='Backspace'){
+    if(currentJamos.length){currentJamos.pop();updateCurrentRow();messageEl.textContent='';}
+    return;
+  }
+  if(key==='Enter'){submitGuess();return;}
+  if(!JAMO_SET.has(key))return;
+  if(currentJamos.length>=COLS){showToast('5칸이 가득 찼어요');return;}
+  currentJamos.push(key);
+  updateCurrentRow();
+  messageEl.textContent='';
+}
+
+function isValidWord(word){
+  if(!word||!/^[가-힣]+$/.test(word)) return false;
+  if(decompose(word).length!==COLS) return false;
+  return guessWords.has(word);
+}
+
+async function submitGuess(){
+  if(gameOver) return;
+  if(currentJamos.length!==COLS){showToast('5칸을 채워주세요');return;}
+  const word=compose(currentJamos);
+  if(!word){showToast('올바른 단어가 아니에요');shakeRow();return;}
+  if(!isValidWord(word)){showToast('사전에 없는 단어예요');shakeRow();return;}
+  const guessJamos=[...currentJamos];
+  const evalRes=evaluate(guessJamos,answerJamos);
+  results.push(evalRes.map(s=>s==='correct'?'correct':s==='present'?'present':'absent'));
+  const cells=[];
+  for(let c=0;c<COLS;c++){
+    const cell=document.querySelector(`.cell[data-row="${row}"][data-col="${c}"]`);
+    cells.push(cell);
+    cell.classList.remove('current');
+    setTimeout(()=>{
+      cell.classList.add('flip',evalRes[c]);
+      cell.classList.remove('filled');
+      const k=guessJamos[c];
+      if(keyEls[k]){
+        const prev=keyEls[k].classList;
+        const rank={absent:1,present:2,correct:3};
+        const cur=evalRes[c];
+        const old=prev.contains('correct')?'correct':prev.contains('present')?'present':prev.contains('absent')?'absent':'';
+        const oldRank=old?rank[old]:0;
+        if(rank[cur]>oldRank){keyEls[k].classList.remove('correct','present','absent');keyEls[k].classList.add(cur);}
+      }
+    },c*300);
+  }
+  const won=evalRes.every(s=>s==='correct');
+  setTimeout(()=>{
+    if(won) endGame(true);
+    else if(row>=ROWS-1) endGame(false);
+    else{row++;currentJamos=[];updateCurrentRow();}
+    saveProgress();
+  },COLS*300+200);
+}
+
+function shakeRow(){
+  const rowEl=document.querySelector(`.row[data-row="${row}"]`);
+  rowEl.style.animation='none';
+  void rowEl.offsetWidth;
+  rowEl.style.animation='shake .4s';
+}
+
+const shakeStyle=document.createElement('style');
+shakeStyle.textContent='@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}';
+document.head.appendChild(shakeStyle);
+
+function endGame(won){
+  gameOver=true;
+  const stats=loadStats();
+  stats.played++;
+  if(won){stats.won++;stats.streak++;stats.maxStreak=Math.max(stats.maxStreak,stats.streak);stats.distribution[row]++;}
+  else stats.streak=0;
+  saveStats(stats);
+  document.getElementById('resultTitle').textContent=won?'정답입니다! 🎉':'아쉬워요 😢';
+  document.getElementById('resultWord').textContent=answer;
+  document.getElementById('resultEmoji').textContent=buildShareText(won,false);
+  document.getElementById('resultModal').classList.add('show');
+  messageEl.textContent=won?'축하합니다!':'정답: '+answer;
+}
+
+function buildShareText(includeTitle=true){
+  const won=results.length&&results[results.length-1].every(r=>r==='correct');
+  const emoji={correct:'🟩',present:'🟨',absent:'⬜'};
+  const lines=results.map(r=>r.map(s=>emoji[s]).join(''));
+  const d=new Date();
+  const date=`${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
+  let text='';
+  if(includeTitle) text=`오늘의 단어 ${date}\n`;
+  text+=won?`${results.length}/6\n`:`X/6\n`;
+  text+=lines.join('\n');
+  text+='\n\n#오늘의단어 #카카오워들';
+  return text;
+}
+
+async function shareResult(){
+  const text=buildShareText();
+  if(navigator.share){
+    try{await navigator.share({title:'오늘의 단어',text});return;}catch(e){}
+  }
+  try{
+    await navigator.clipboard.writeText(text);
+    showToast('결과가 복사되었어요!');
+  }catch(e){
+    showToast('복사에 실패했어요');
+  }
+}
+
+function renderStats(){
+  const s=loadStats();
+  const pct=s.played?Math.round(s.played?s.won/s.played*100:0):0;
+  document.getElementById('statsGrid').innerHTML=`
+    <div><div class="stat-num">${s.played}</div><div class="stat-label">플레이</div></div>
+    <div><div class="stat-num">${pct}</div><div class="stat-label">승률%</div></div>
+    <div><div class="stat-num">${s.streak}</div><div class="stat-label">연속</div></div>
+    <div><div class="stat-num">${s.maxStreak}</div><div class="stat-label">최대연속</div></div>`;
+  const max=Math.max(...s.distribution,1);
+  document.getElementById('distChart').innerHTML=s.distribution.map((n,i)=>`
+    <div class="dist-row"><span>${i+1}</span><div class="dist-bar"><div class="dist-fill" style="width:${Math.max(n/max*100,8)}%"></div></div><span>${n}</span></div>`).join('');
+}
+
+function resetBoard(){
+  row=0;currentJamos=[];gameOver=false;results=[];
+  document.querySelectorAll('.cell').forEach(c=>{c.textContent='';c.className='cell';});
+  messageEl.textContent='';
+}
+
+function pickRandomAnswer(){
+  if(words.length===1) return words[0];
+  let next;
+  do{next=words[Math.floor(Math.random()*words.length)];}while(next===answer);
+  return next;
+}
+
+function startNewGame(random=true){
+  if((!gameOver&&(row>0||currentJamos.length>0))&&!confirm('진행 중인 게임을 포기하고 새 게임을 시작할까요?')) return;
+  buildKeyboard();
+  resetBoard();
+  gameMode=random?'random':'daily';
+  answer=random?pickRandomAnswer():words[getDailyIndex(words.length)];
+  answerJamos=decompose(answer);
+  localStorage.removeItem('kakaoWordleToday');
+  updateCurrentRow();
+  document.getElementById('resultModal').classList.remove('show');
+  showToast(random?'새 단어로 시작!':'오늘의 단어로 시작!');
+}
+
+document.getElementById('btnNew').addEventListener('click',()=>startNewGame(true));
+document.getElementById('btnNewFromResult').addEventListener('click',()=>startNewGame(true));
+document.getElementById('btnStats').addEventListener('click',()=>{renderStats();document.getElementById('statsModal').classList.add('show');});
+document.getElementById('btnHelp').addEventListener('click',()=>document.getElementById('helpModal').classList.add('show'));
+document.getElementById('btnShare').addEventListener('click',shareResult);
+document.getElementById('btnShareResult').addEventListener('click',shareResult);
+document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>b.closest('.modal-overlay').classList.remove('show')));
+document.querySelectorAll('.modal-overlay').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('show');}));
+
+document.addEventListener('keydown',e=>{
+  if(e.ctrlKey||e.metaKey||e.altKey)return;
+  if(e.key==='Enter')onKey('Enter');
+  else if(e.key==='Backspace')onKey('Backspace');
+  else if(JAMO_SET.has(e.key))onKey(e.key);
+});
+
+async function init(){
+  buildBoard();buildKeyboard();
+  words=await loadAnswerWords();
+  guessWords=await loadGuessWords();
+  if(!words.length){messageEl.textContent='단어 목록을 불러올 수 없습니다.';return;}
+  const idx=getDailyIndex(words.length);
+  answer=words[idx];
+  answerJamos=decompose(answer);
+  const saved=localStorage.getItem('kakaoWordleToday');
+  const today=new Date().toDateString();
+  if(saved){
+    try{
+      const data=JSON.parse(saved);
+      if(data.date===today&&data.answer===answer&&data.gameMode!=='random'){
+        gameMode=data.gameMode||'daily';
+        row=data.row;results=data.results||[];gameOver=data.gameOver;
+        data.board.forEach((jamos,r)=>{
+          jamos.forEach((j,r2)=>{
+            const cell=document.querySelector(`.cell[data-row="${r}"][data-col="${r2}"]`);
+            cell.textContent=j;cell.classList.add(data.states[r][r2]);
+          });
+        });
+        if(!gameOver) currentJamos=data.current||[];
+        else messageEl.textContent=data.won?'축하합니다!':'정답: '+answer;
+      }
+    }catch(e){}
+  }
+  updateCurrentRow();
+}
+
+function saveProgress(){
+  const today=new Date().toDateString();
+  const board=[],states=[];
+  for(let r=0;r<ROWS;r++){
+    const j=[],s=[];
+    for(let c=0;c<COLS;c++){
+      const cell=document.querySelector(`.cell[data-row="${r}"][data-col="${c}"]`);
+      j.push(cell.textContent);
+      s.push(cell.classList.contains('correct')?'correct':cell.classList.contains('present')?'present':cell.classList.contains('absent')?'absent':'');
+    }
+    board.push(j);states.push(s);
+  }
+  localStorage.setItem('kakaoWordleToday',JSON.stringify({
+    date:today,answer,row,current:currentJamos,board,states,results,gameOver,gameMode,
+    won:gameOver&&results.length&&results[results.length-1].every(x=>x==='correct')
+  }));
+}
+
+init();
+</script>
+</body>
+</html>
