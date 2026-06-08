@@ -88,7 +88,6 @@
     </div>
   </header>
   <main>
-    <p class="info">자모 5칸 · 6번의 기회<br>오늘의 단어를 맞혀보세요!</p>
     <div class="shared-bar">
       <div class="label" id="playerLabel">플레이어</div>
       <button class="btn-secondary" id="btnSetName">이름 설정</button>
@@ -104,6 +103,14 @@
       <h2>통계</h2>
       <div class="stats-grid" id="statsGrid"></div>
       <div class="dist" id="distChart"></div>
+        <div style="margin-top:12px">
+          <div style="display:flex;gap:8px;margin-bottom:8px">
+            <button class="btn-secondary" id="lbDay">오늘</button>
+            <button class="btn-secondary" id="lbWeek">이번주</button>
+            <button class="btn-secondary" id="lbMonth">이번달</button>
+          </div>
+          <div id="leaderboardList" style="background:#fff;border-radius:10px;padding:8px;max-height:200px;overflow:auto;box-shadow:var(--shadow)"></div>
+        </div>
       <button class="btn-primary" id="btnShare">결과 공유</button>
       <button class="btn-secondary" data-close>닫기</button>
     </div>
@@ -370,6 +377,7 @@ async function setupSharedListener(){
     if(!entry) return;
     if(currentSharedInfo && entry.word===currentSharedInfo.word && entry.solved===currentSharedInfo.solved) return;
     currentSharedInfo=entry;
+    if(entry.solved) firstSolverName = entry.solvedBy || firstSolverName;
     showSharedInfo(entry);
     if(entry.solved && answer===entry.word && !gameOver){
       showToast('이 문제가 이미 풀렸습니다. 새로운 공유 문제를 가져옵니다.');
@@ -773,6 +781,8 @@ function saveStats(s){localStorage.setItem(STATS_KEY,JSON.stringify(s));}
 
 let words=[],guessWords=new Set(),answer='',answerJamos=[],row=0,currentJamos=[],gameOver=false,results=[];
 let keyEls={},gameMode='daily';
+let isFirstSolver=false;
+let firstSolverName='';
 
 const boardEl=document.getElementById('board');
 const messageEl=document.getElementById('message');
@@ -869,38 +879,52 @@ async function submitGuess(){
   if(!isValidWord(word)){showToast('사전에 없는 단어예요');shakeRow();return;}
   const guessJamos=[...currentJamos];
   const evalRes=evaluate(guessJamos,answerJamos);
-  results.push(evalRes.map(s=>s==='correct'?'correct':s==='present'?'present':'absent'));
-  const cells=[];
-  for(let c=0;c<COLS;c++){
-    const cell=document.querySelector(`.cell[data-row="${row}"][data-col="${c}"]`);
-    cells.push(cell);
-    cell.classList.remove('current');
-    setTimeout(()=>{
-      cell.classList.add('flip',evalRes[c]);
-      cell.classList.remove('filled');
-      const k=guessJamos[c];
-      if(keyEls[k]){
-        const prev=keyEls[k].classList;
-        const rank={absent:1,present:2,correct:3};
-        const cur=evalRes[c];
-        const old=prev.contains('correct')?'correct':prev.contains('present')?'present':prev.contains('absent')?'absent':'';
-        const oldRank=old?rank[old]:0;
-        if(rank[cur]>oldRank){keyEls[k].classList.remove('correct','present','absent');keyEls[k].classList.add(cur);}
+    const result=await rootRef.transaction(current=>{
+      if(!current) return;
+      const currentId=current[SHARED_CURRENT_ID];
+      const entry=current?.[SHARED_ENTRIES]?.[currentId];
+      if(!entry||entry.solved||entry.word!==answer) return;
+      return {
+        ...current,
+        [SHARED_CURRENT_ID]:nextKey,
+        [SHARED_ENTRIES]:{
+          ...current[SHARED_ENTRIES],
+          [currentId]:{
+            ...entry,
+            solved:true,
+            solvedBy:name,
+            solvedAt:new Date().toISOString(),
+            updatedAt:new Date().toISOString()
+          },
+          [nextKey]:newEntry
+        }
+      };
+    });
+    const committed=result.committed;
+    const root=result.snapshot.val();
+    // determine who solved the entry with this word (if any)
+    let solvedByName='';
+    if(root && root[SHARED_ENTRIES]){
+      const entries=root[SHARED_ENTRIES];
+      for(const k of Object.keys(entries)){
+        const e=entries[k];
+        if(e && e.word===answer && e.solved){ solvedByName=e.solvedBy||''; break; }
       }
-    },c*300);
-  }
-  const won=evalRes.every(s=>s==='correct');
-  setTimeout(()=>{
-    if(won) endGame(true);
-    else if(row>=ROWS-1) endGame(false);
-    else{row++;currentJamos=[];updateCurrentRow();}
-    saveProgress();
-  },COLS*300+200);
-}
-
+    }
+    firstSolverName=solvedByName;
+    isFirstSolver = committed && solvedByName===name;
+    if(committed){
+      showToast('첫 정답자 기록이 서버에 저장되었습니다! 다음 문제가 등록되었습니다.');
+      // show the next current entry (transaction advanced to next)
+      const currentId=root?.[SHARED_CURRENT_ID];
+      const entry=root?.[SHARED_ENTRIES]?.[currentId];
+      if(entry) showSharedInfo(entry);
+    }
+    return {committed, firstSolverName: solvedByName};
 function shakeRow(){
   const rowEl=document.querySelector(`.row[data-row="${row}"]`);
-  rowEl.style.animation='none';
+    return {committed:false, firstSolverName:''};
+  }
   void rowEl.offsetWidth;
   rowEl.style.animation='shake .4s';
 }
@@ -916,32 +940,78 @@ function endGame(won){
   if(won){stats.won++;stats.streak++;stats.maxStreak=Math.max(stats.maxStreak,stats.streak);stats.distribution[row]++;}
   else stats.streak=0;
   saveStats(stats);
-  if(won && gameMode==='shared') claimSharedWord();
-  document.getElementById('resultTitle').textContent=won?'정답입니다! 🎉':'아쉬워요 😢';
+  let shareText='';
+  let showTitle='';
+  if(won && gameMode==='shared'){
+    // try to claim as first solver
+    try{
+      const res = await claimSharedWord();
+      // res may be {committed, firstSolverName}
+      const committed = res?.committed;
+      const fsName = res?.firstSolverName||firstSolverName||'';
+      if(committed){
+        isFirstSolver = true;
+        firstSolverName = fsName;
+        showTitle = 'WINNER';
+        shareText = buildShareText(false, {isFirst:true});
+      }else{
+        isFirstSolver = false;
+        firstSolverName = fsName;
+        showTitle = '정답!';
+        shareText = buildShareText(false, {isFirst:false, firstName: firstSolverName});
+      }
+    }catch(e){
+      showTitle = won ? '정답입니다! 🎉' : '아쉬워요 😢';
+      shareText = buildShareText();
+    }
+  }else{
+    showTitle = won ? '정답입니다! 🎉' : '아쉬워요 😢';
+    shareText = buildShareText();
+  }
+  document.getElementById('resultTitle').textContent=showTitle;
   document.getElementById('resultWord').textContent=answer;
-  document.getElementById('resultEmoji').textContent=buildShareText(won,false);
+  document.getElementById('resultEmoji').textContent=shareText;
   document.getElementById('resultModal').classList.add('show');
-  messageEl.textContent=won?'축하합니다!':'정답: '+answer;
+  messageEl.textContent=won? (isFirstSolver ? '축하합니다!' : '축하합니다!') : '정답: '+answer;
   messageEl.classList.toggle('congrats', won);
 }
 
-function buildShareText(includeTitle=true){
+function buildShareText(includeTitle=true, opts={}){
+  // opts: can be boolean (isFirst) or object {isFirst, firstName, isShared}
+  let isFirst=false, firstName='';
+  if(typeof opts==='boolean') isFirst=opts;
+  else { isFirst=!!opts.isFirst; firstName=opts.firstName||''; }
   const won=results.length&&results[results.length-1].every(r=>r==='correct');
   const emoji={correct:'🟩',present:'🟨',absent:'⬜'};
   const lines=results.map(r=>r.map(s=>emoji[s]).join(''));
   const d=new Date();
   const date=`${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
   let text='';
-  if(includeTitle) text=`오늘의 단어 ${date}\n`;
-  text+=won?`${results.length}/6\n`:`X/6\n`;
-  text+=lines.join('\n');
+  if(isFirst){
+    text += 'WINNER\n';
+  } else {
+    // for non-first shared solvers, we'll not include the date/title line when firstName is provided
+    if(!firstName && includeTitle) text += `오늘의 단어 ${date}\n`;
+  }
+  text += won?`${results.length}/6\n`:`X/6\n`;
+  text += lines.join('\n');
+  if(!isFirst && firstName){
+    text += `\n\n먼저 맞춘 사람: ${firstName}`;
+  }
   const url = location.href;
   text += `\n\n${url}`;
   return text;
 }
 
 async function shareResult(){
-  const text=buildShareText();
+  let text='';
+  if(gameMode==='shared'){
+    if(isFirstSolver) text = buildShareText(false, {isFirst:true});
+    else if(firstSolverName) text = buildShareText(false, {isFirst:false, firstName:firstSolverName});
+    else text = buildShareText(false, {isFirst:false});
+  }else{
+    text = buildShareText();
+  }
   if(navigator.share){
     try{await navigator.share({title:'오늘의 단어',text,url:location.href});return;}catch(e){}
   }
@@ -964,7 +1034,57 @@ function renderStats(){
   const max=Math.max(...s.distribution,1);
   document.getElementById('distChart').innerHTML=s.distribution.map((n,i)=>`
     <div class="dist-row"><span>${i+1}</span><div class="dist-bar"><div class="dist-fill" style="width:${Math.max(n/max*100,8)}%"></div></div><span>${n}</span></div>`).join('');
+  // render leaderboard default view
+  try{renderLeaderboard('day');}catch(e){}
 }
+
+function parseISO(iso){ try{ return new Date(iso); }catch(e){ return null; } }
+
+function periodStart(kind){
+  const now=new Date();
+  if(kind==='day'){
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  }else if(kind==='week'){
+    const d=new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const day=d.getDay(); // 0 Sun - 6 Sat
+    const diff = (day + 6) % 7; // make Monday=0
+    d.setDate(d.getDate()-diff);
+    d.setHours(0,0,0,0);
+    return d;
+  }else if(kind==='month'){
+    return new Date(now.getFullYear(), now.getMonth(), 1);
+  }
+  return new Date(0);
+}
+
+async function renderLeaderboard(kind){
+  const container=document.getElementById('leaderboardList');
+  container.innerHTML='로딩 중...';
+  if(!firebaseReady || !firebaseDb){ container.innerHTML='(데이터 없음)'; return; }
+  try{
+    const snap = await firebaseDb.ref(`${SHARED_DB_PATH}/${SHARED_ENTRIES}`).once('value');
+    const data = snap.val()||{};
+    const start = periodStart(kind);
+    const counts = {};
+    const firstTimes = {};
+    Object.values(data).forEach(e=>{
+      if(!e||!e.solved||!e.solvedAt||!e.solvedBy) return;
+      const t = parseISO(e.solvedAt);
+      if(!t||t<start) return;
+      const name = e.solvedBy || '익명';
+      counts[name] = (counts[name]||0) + 1;
+      if(!firstTimes[name] || t < firstTimes[name]) firstTimes[name]=t;
+    });
+    const arr = Object.keys(counts).map(name=>({name,count:counts[name],first:firstTimes[name]}));
+    arr.sort((a,b)=>{ if(b.count!==a.count) return b.count-a.count; return (a.first||0)-(b.first||0); });
+    if(!arr.length){ container.innerHTML='기록이 없습니다.'; return; }
+    container.innerHTML = arr.slice(0,5).map((it,idx)=>`<div style="display:flex;justify-content:space-between;padding:6px 8px;border-bottom:1px solid var(--border)"><div><strong>${idx+1}.</strong> ${it.name}</div><div>${it.count}회</div></div>`).join('');
+  }catch(e){ console.warn(e); container.innerHTML='불러오기 실패'; }
+}
+
+document.getElementById('lbDay').addEventListener('click',()=>{ renderLeaderboard('day'); });
+document.getElementById('lbWeek').addEventListener('click',()=>{ renderLeaderboard('week'); });
+document.getElementById('lbMonth').addEventListener('click',()=>{ renderLeaderboard('month'); });
 
 function resetBoard(){
   row=0;currentJamos=[];gameOver=false;results=[];
