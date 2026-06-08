@@ -18,6 +18,9 @@
     .icon-btn{width:36px;height:36px;border:none;border-radius:50%;background:rgba(60,30,30,.1);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center}
     main{flex:1 1 auto;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:10px 8px 6px;max-width:360px;margin:0 auto;width:100%;min-height:0;overflow:hidden}
     .info{text-align:center;font-size:12px;color:#666;margin-bottom:10px;line-height:1.4}
+    .shared-bar{width:100%;max-width:360px;margin:0 auto 10px;padding:10px 12px;background:#fff;border-radius:16px;box-shadow:var(--shadow);font-size:13px;color:#333;display:flex;align-items:center;justify-content:space-between;gap:8px}
+    .shared-bar .label{font-weight:700}
+    .shared-bar .btn-secondary{width:auto;padding:8px 12px;min-width:100px}
     .board{flex:1 1 auto;display:grid;grid-template-rows:repeat(6,1fr);gap:3px;margin:0 auto 10px;width:260px;max-width:100%;min-height:0;max-height:240px}
     .row{display:grid;grid-template-columns:repeat(5,1fr);gap:3px;width:100%}
     .cell{aspect-ratio:1;border:2px solid var(--border);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;line-height:1;font-weight:700;background:var(--white);transition:transform .15s,border-color .2s,background .2s,color .2s}
@@ -41,6 +44,8 @@
     .key.absent{background:var(--gray-dark);color:#fff}
     .key:active{transform:scale(.95)}
     .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:100;align-items:center;justify-content:center;padding:16px}
+  .modal input[type="text"]{width:100%;padding:12px;border:1px solid var(--border);border-radius:10px;font-size:15px;margin-bottom:16px}
+  .modal .modal-actions{display:flex;gap:10px;flex-wrap:wrap}
     @media(max-width:520px){
       .board{width:220px;max-width:100%;max-height:200px;gap:2px;}
       .row{gap:2px}
@@ -84,6 +89,10 @@
   </header>
   <main>
     <p class="info">자모 5칸 · 6번의 기회<br>오늘의 단어를 맞혀보세요!</p>
+    <div class="shared-bar">
+      <div class="label" id="playerLabel">플레이어</div>
+      <button class="btn-secondary" id="btnSetName">이름 설정</button>
+    </div>
     <div class="board" id="board"></div>
     <p class="message" id="message"></p>
   </main>
@@ -113,6 +122,18 @@
       <button class="btn-primary" data-close style="margin-top:16px">시작하기</button>
     </div>
   </div>
+  <div class="modal-overlay" id="nameModal">
+    <div class="modal modal-wrap">
+      <button class="modal-close" data-close>&times;</button>
+      <h2>플레이어 이름</h2>
+      <p style="font-size:14px;margin-bottom:12px">게임에 표시할 이름을 입력하세요.</p>
+      <input id="playerNameInput" type="text" placeholder="이름 입력">
+      <div class="modal-actions">
+        <button class="btn-primary" id="btnSaveName">저장</button>
+        <button class="btn-secondary" data-close>취소</button>
+      </div>
+    </div>
+  </div>
   <div class="modal-overlay" id="resultModal">
     <div class="modal modal-wrap">
       <button class="modal-close" data-close>&times;</button>
@@ -125,6 +146,8 @@
     </div>
   </div>
 <script src="dictionary.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
 <script>
 const CHO=['ㄱ','ㄲ','ㄴ','ㄷ','ㄸ','ㄹ','ㅁ','ㅂ','ㅃ','ㅅ','ㅆ','ㅇ','ㅈ','ㅉ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'];
 const JUNG=['ㅏ','ㅐ','ㅑ','ㅒ','ㅓ','ㅔ','ㅕ','ㅖ','ㅗ','ㅘ','ㅙ','ㅚ','ㅛ','ㅜ','ㅝ','ㅞ','ㅟ','ㅠ','ㅡ','ㅢ','ㅣ'];
@@ -156,6 +179,228 @@ const JAMO_SET=new Set([...CHO,...BASIC_VOWELS]);
 function startsWith(arr,seq){return seq.every((v,i)=>arr[i]===v);}
 const ROWS=6,COLS=5;
 const STATS_KEY='kakaoWordleStats';
+const SHARED_DB_PATH='/sharedWord';
+const SHARED_CURRENT_ID='currentId';
+const SHARED_ENTRIES='entries';
+const FIREBASE_CONFIG={
+  apiKey: "AIzaSyAJyIuxDvR6LVVu5unNsZ76jAdxz49YpME",
+  authDomain: "todaywordle-aebdd.firebaseapp.com",
+  databaseURL: "https://todaywordle-aebdd-default-rtdb.firebaseio.com",
+  projectId: "todaywordle-aebdd",
+  storageBucket: "todaywordle-aebdd.firebasestorage.app",
+  messagingSenderId: "87999445641",
+  appId: "1:87999445641:web:9c15e866f82e2bf30d2458"
+};
+let firebaseReady=false;
+let firebaseDb=null;
+let currentSharedInfo=null;
+
+function setCookie(name,value,days=365){
+  const d=new Date();d.setTime(d.getTime()+days*24*60*60*1000);
+  document.cookie=`${encodeURIComponent(name)}=${encodeURIComponent(value)};path=/;expires=${d.toUTCString()}`;
+}
+function getCookie(name){
+  return document.cookie.split('; ').reduce((acc,cookie)=>{
+    const [k,v]=cookie.split('=');return k===encodeURIComponent(name)?decodeURIComponent(v):acc;
+  },'');
+}
+function loadPlayerName(){
+  return getCookie('playerName')||localStorage.getItem('playerName')||'';
+}
+function savePlayerName(name){
+  if(!name) return;
+  setCookie('playerName',name,365);
+  localStorage.setItem('playerName',name);
+  updatePlayerLabel(name);
+}
+function updatePlayerLabel(name){
+  const label=document.getElementById('playerLabel');
+  const btn=document.getElementById('btnSetName');
+  const current=name||loadPlayerName();
+  label.textContent='플레이어';
+  btn.textContent=current?current:'이름 설정';
+}
+function formatTime(iso){
+  if(!iso) return '';
+  const d=new Date(iso);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
+function buildSharedEntry(word){
+  return {word,solved:false,solvedBy:'',solvedAt:'',updatedAt:new Date().toISOString()};
+}
+
+function showSharedInfo(data){
+  // 이제 상단 설명은 표시하지 않습니다.
+}
+
+async function initFirebase(){
+  if(!FIREBASE_CONFIG.apiKey||FIREBASE_CONFIG.apiKey.startsWith('YOUR_')) return;
+  try{
+    firebase.initializeApp(FIREBASE_CONFIG);
+    firebaseDb=firebase.database();
+    firebaseReady=true;
+  }catch(e){
+    console.warn('Firebase 초기화 실패',e);
+  }
+}
+
+function getCurrentSharedEntry(root){
+  const currentId=root?.[SHARED_CURRENT_ID];
+  return currentId ? root?.[SHARED_ENTRIES]?.[currentId] : null;
+}
+
+async function syncSharedWord(forceNew=false){
+  if(!firebaseReady){
+    answer=pickRandomAnswer();
+    answerJamos=decompose(answer);
+    showSharedInfo(null);
+    return;
+  }
+  const rootRef=firebaseDb.ref(SHARED_DB_PATH);
+  try{
+    const snapshot=await rootRef.once('value');
+    let root=snapshot.val();
+    let currentId=root?.[SHARED_CURRENT_ID];
+    let currentEntry=currentId ? root?.[SHARED_ENTRIES]?.[currentId] : null;
+
+    //const currentId=root?.[SHARED_CURRENT_ID];
+    currentEntry=getCurrentSharedEntry(root);
+    if(!currentEntry || currentEntry.solved || forceNew){
+      const nextKey=firebaseDb.ref(`${SHARED_DB_PATH}/${SHARED_ENTRIES}`).push().key;
+      const nextWord=pickRandomAnswer();
+      const newEntry=buildSharedEntry(nextWord);
+      const transactionResult=await rootRef.transaction(current=>{
+        const curEntry=getCurrentSharedEntry(current);
+        if(curEntry && !curEntry.solved && !forceNew) return current;
+        return {
+          ...current,
+          [SHARED_CURRENT_ID]:nextKey,
+          [SHARED_ENTRIES]:{...(current?.[SHARED_ENTRIES]||{}), [nextKey]:newEntry}
+        };
+      });
+      root=transactionResult.snapshot.val();
+      currentId=root?.[SHARED_CURRENT_ID];
+      currentEntry=getCurrentSharedEntry(root);
+    }
+    if(currentEntry){
+      currentSharedInfo={id:currentId,...currentEntry};
+      answer=currentEntry.word;
+      answerJamos=decompose(answer);
+      showSharedInfo(currentEntry);
+    }
+  }catch(e){
+    console.warn('Firebase 동기화 실패',e);
+    answer=pickRandomAnswer();
+    answerJamos=decompose(answer);
+    showSharedInfo(null);
+  }
+}
+
+async function createNextSharedEntry(){
+  if(!firebaseReady) return;
+  const rootRef=firebaseDb.ref(SHARED_DB_PATH);
+  const nextKey=firebaseDb.ref(`${SHARED_DB_PATH}/${SHARED_ENTRIES}`).push().key;
+  const nextWord=pickRandomAnswer();
+  const newEntry=buildSharedEntry(nextWord);
+  try{
+    await rootRef.transaction(current=>{
+      const curCurrentId=current?.[SHARED_CURRENT_ID];
+      const curEntry=curCurrentId ? current?.[SHARED_ENTRIES]?.[curCurrentId] : null;
+      if(curEntry && !curEntry.solved) return current;
+      return {
+        ...current,
+        [SHARED_CURRENT_ID]:nextKey,
+        [SHARED_ENTRIES]:{...(current?.[SHARED_ENTRIES]||{}), [nextKey]:newEntry}
+      };
+    });
+  }catch(e){
+    console.warn('새 공유 문제 생성 실패',e);
+  }
+}
+
+async function claimSharedWord(){
+  if(!firebaseReady||!answer) return;
+  const name=loadPlayerName()||'익명';
+  const rootRef=firebaseDb.ref(SHARED_DB_PATH);
+  try{
+    const nextKey=firebaseDb.ref(`${SHARED_DB_PATH}/${SHARED_ENTRIES}`).push().key;
+    const nextWord=pickRandomAnswer();
+    const newEntry=buildSharedEntry(nextWord);
+    const result=await rootRef.transaction(current=>{
+      if(!current) return;
+      const currentId=current[SHARED_CURRENT_ID];
+      const entry=current?.[SHARED_ENTRIES]?.[currentId];
+      if(!entry||entry.solved||entry.word!==answer) return;
+      return {
+        ...current,
+        [SHARED_CURRENT_ID]:nextKey,
+        [SHARED_ENTRIES]:{
+          ...current[SHARED_ENTRIES],
+          [currentId]:{
+            ...entry,
+            solved:true,
+            solvedBy:name,
+            solvedAt:new Date().toISOString(),
+            updatedAt:new Date().toISOString()
+          },
+          [nextKey]:newEntry
+        }
+      };
+    });
+    const committed=result.committed;
+    const root=result.snapshot.val();
+    const currentId=root?.[SHARED_CURRENT_ID];
+    const entry=root?.[SHARED_ENTRIES]?.[currentId];
+    if(committed && entry?.word===nextWord){
+      showToast('첫 정답자 기록이 서버에 저장되었습니다! 다음 문제가 등록되었습니다.');
+      showSharedInfo(entry);
+    }
+  }catch(e){
+    console.warn('공유 정답 기록 실패',e);
+  }
+}
+
+async function setupSharedListener(){
+  if(!firebaseReady) return;
+  const ref=firebaseDb.ref(SHARED_DB_PATH);
+  ref.on('value',snapshot=>{
+    const data=snapshot.val();
+    if(!data) return;
+    const entry=getCurrentSharedEntry(data);
+    if(!entry) return;
+    if(currentSharedInfo && entry.word===currentSharedInfo.word && entry.solved===currentSharedInfo.solved) return;
+    currentSharedInfo=entry;
+    showSharedInfo(entry);
+    if(entry.solved && answer===entry.word && !gameOver){
+      showToast('이 문제가 이미 풀렸습니다. 새로운 공유 문제를 가져옵니다.');
+      startSharedGame(true);
+    }
+  });
+}
+
+function openNameModal(defaultName=''){
+  const modal=document.getElementById('nameModal');
+  const input=document.getElementById('playerNameInput');
+  input.value=defaultName;
+  modal.classList.add('show');
+  setTimeout(()=>input.focus(),0);
+}
+function closeNameModal(){
+  document.getElementById('nameModal').classList.remove('show');
+}
+function savePlayerNameFromModal(){
+  const input=document.getElementById('playerNameInput');
+  const name=input.value.trim()||'익명';
+  savePlayerName(name);
+  closeNameModal();
+}
+
+async function promptPlayerName(){
+  const existing=loadPlayerName();
+  if(existing){updatePlayerLabel(existing);return existing;}
+  openNameModal('');
+  return existing;
+}
 const EMBEDDED_WORDS=`학교
 대박
 사랑
@@ -671,6 +916,7 @@ function endGame(won){
   if(won){stats.won++;stats.streak++;stats.maxStreak=Math.max(stats.maxStreak,stats.streak);stats.distribution[row]++;}
   else stats.streak=0;
   saveStats(stats);
+  if(won && gameMode==='shared') claimSharedWord();
   document.getElementById('resultTitle').textContent=won?'정답입니다! 🎉':'아쉬워요 😢';
   document.getElementById('resultWord').textContent=answer;
   document.getElementById('resultEmoji').textContent=buildShareText(won,false);
@@ -760,8 +1006,24 @@ function startNewGame(random=true){
   showToast(random?'새 단어로 시작!':'오늘의 단어로 시작!');
 }
 
-document.getElementById('btnNew').addEventListener('click',()=>startNewGame(true));
-document.getElementById('btnNewFromResult').addEventListener('click',()=>startNewGame(true));
+async function startSharedGame(forceNew=false){
+  if((!gameOver&&(row>0||currentJamos.length>0))&&!confirm('진행 중인 게임을 포기하고 현재 공유 문제로 시작할까요?')) return;
+  await syncSharedWord(forceNew);
+  buildKeyboard();
+  resetBoard();
+  gameMode='shared';
+  answerJamos=decompose(answer);
+  localStorage.removeItem('kakaoWordleToday');
+  updateCurrentRow();
+  document.getElementById('resultModal').classList.remove('show');
+  showToast('공유된 문제로 시작합니다!');
+}
+
+document.getElementById('btnNew').addEventListener('click',()=>startSharedGame(false));
+document.getElementById('btnNewFromResult').addEventListener('click',()=>startSharedGame(false));
+document.getElementById('btnSetName').addEventListener('click',()=>openNameModal(loadPlayerName()));
+document.getElementById('btnSaveName').addEventListener('click',savePlayerNameFromModal);
+document.getElementById('playerNameInput').addEventListener('keydown',e=>{if(e.key==='Enter') savePlayerNameFromModal();});
 document.getElementById('btnStats').addEventListener('click',()=>{renderStats();document.getElementById('statsModal').classList.add('show');});
 document.getElementById('btnHelp').addEventListener('click',()=>document.getElementById('helpModal').classList.add('show'));
 document.getElementById('btnShare').addEventListener('click',shareResult);
@@ -778,26 +1040,28 @@ document.addEventListener('keydown',e=>{
 
 async function init(){
   buildBoard();buildKeyboard();
+  updatePlayerLabel();
+  await initFirebase();
   words=await loadAnswerWords();
   guessWords=await loadGuessWords();
   if(!words.length){messageEl.textContent='단어 목록을 불러올 수 없습니다.';return;}
-  gameMode='random';
-  answer=pickRandomAnswer();
-  answerJamos=decompose(answer);
+  await syncSharedWord();
+  if(firebaseReady && currentSharedInfo) gameMode='shared';
+  await setupSharedListener();
   const saved=localStorage.getItem('kakaoWordleToday');
   const today=new Date().toDateString();
   if(saved){
     try{
       const data=JSON.parse(saved);
       if(data.date===today&&data.answer===answer){
-        gameMode=data.gameMode||'daily';
+        gameMode=data.gameMode||'shared';
         row=data.row;results=data.results||[];gameOver=data.gameOver;
         const keyStates={};
         data.board.forEach((jamos,r)=>{
-          jamos.forEach((j,r2)=>{
-            const cell=document.querySelector(`.cell[data-row="${r}"][data-col="${r2}"]`);
+          jamos.forEach((j,c)=>{
+            const cell=document.querySelector(`.cell[data-row="${r}"][data-col="${c}"]`);
             cell.textContent=j;
-            const state=data.states[r][r2];
+            const state=data.states[r][c];
             if(state) cell.classList.add(state);
             if(j&&state){
               const rank={absent:1,present:2,correct:3};
