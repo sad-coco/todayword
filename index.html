@@ -69,7 +69,8 @@
     .dist-fill{height:100%;background:var(--kakao-dark);border-radius:4px;min-width:8px;transition:width .3s}
     .btn-primary{width:100%;padding:14px;border:none;border-radius:10px;background:var(--kakao);font-size:15px;font-weight:700;cursor:pointer;margin-top:8px}
     .btn-secondary{width:100%;padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--white);font-size:14px;cursor:pointer;margin-top:8px}
-    .result-emoji{font-family:monospace;font-size:20px;letter-spacing:2px;text-align:center;margin:12px 0}
+    .btn-secondary.active{background:var(--kakao);color:var(--kakao-dark);border-color:var(--kakao);font-weight:700}
+    .result-emoji{font-family:monospace;font-size:20px;letter-spacing:2px;text-align:center;margin:12px 0;white-space: pre-line;}
     .help-list{font-size:14px;line-height:1.8;padding-left:18px}
     .help-demo{display:flex;gap:4px;margin:8px 0 16px}
     .help-cell{width:36px;height:36px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;border:2px solid var(--border)}
@@ -85,6 +86,7 @@
       <button class="icon-btn" id="btnNew" title="새 게임">↻</button>
       <button class="icon-btn" id="btnHelp" title="도움말">?</button>
       <button class="icon-btn" id="btnStats" title="통계">📊</button>
+      <button class="icon-btn" id="btnLeaderboard" title="리더보드">🏆</button>
     </div>
   </header>
   <main>
@@ -103,16 +105,21 @@
       <h2>통계</h2>
       <div class="stats-grid" id="statsGrid"></div>
       <div class="dist" id="distChart"></div>
-        <div style="margin-top:12px">
-          <div style="display:flex;gap:8px;margin-bottom:8px">
-            <button class="btn-secondary" id="lbDay">오늘</button>
-            <button class="btn-secondary" id="lbWeek">이번주</button>
-            <button class="btn-secondary" id="lbMonth">이번달</button>
-          </div>
-          <div id="leaderboardList" style="background:#fff;border-radius:10px;padding:8px;max-height:200px;overflow:auto;box-shadow:var(--shadow)"></div>
-        </div>
       <button class="btn-primary" id="btnShare">결과 공유</button>
       <button class="btn-secondary" data-close>닫기</button>
+    </div>
+  </div>
+  <div class="modal-overlay" id="leaderboardModal">
+    <div class="modal modal-wrap">
+      <button class="modal-close" data-close>&times;</button>
+      <h2>리더보드</h2>
+      <div style="display:flex;gap:8px;margin-bottom:8px">
+        <button class="btn-secondary" id="lbModalDay">오늘</button>
+        <button class="btn-secondary" id="lbModalWeek">이번주</button>
+        <button class="btn-secondary" id="lbModalMonth">이번달</button>
+      </div>
+      <div id="leaderboardModalList" style="background:#fff;border-radius:10px;padding:8px;max-height:320px;overflow:auto;box-shadow:var(--shadow)"></div>
+      <div style="margin-top:12px"><button class="btn-secondary" data-close>닫기</button></div>
     </div>
   </div>
   <div class="modal-overlay" id="helpModal">
@@ -146,6 +153,7 @@
       <button class="modal-close" data-close>&times;</button>
       <h2 id="resultTitle">정답!</h2>
       <p id="resultWord" style="text-align:center;font-size:24px;font-weight:700;margin:12px 0"></p>
+      <p id="resultMessage" style="text-align:center;font-size:16px;font-weight:700;margin:12px 0;min-height:40px;line-height:1.5;padding:8px;background:linear-gradient(135deg,#ffe066,#ff8a65);color:#7f1d1d;border-radius:8px;white-space:pre-line"></p>
       <div class="result-emoji" id="resultEmoji"></div>
       <button class="btn-primary" id="btnShareResult">결과 공유</button>
       <button class="btn-secondary" id="btnNewFromResult">새 게임</button>
@@ -802,6 +810,60 @@ const messageEl=document.getElementById('message');
 const keyboardEl=document.getElementById('keyboard');
 const toastEl=document.getElementById('toast');
 
+function showToast(msg){
+  if(!toastEl) return;
+  toastEl.textContent=msg;
+  toastEl.classList.add('show');
+  setTimeout(()=>toastEl.classList.remove('show'),1800);
+}
+
+function buildBoard(){
+  boardEl.innerHTML='';
+  for(let r=0;r<ROWS;r++){
+    const rowEl=document.createElement('div');
+    rowEl.className='row';
+    rowEl.dataset.row=r;
+    for(let c=0;c<COLS;c++){
+      const cell=document.createElement('div');
+      cell.className='cell';
+      cell.dataset.row=r;cell.dataset.col=c;
+      rowEl.appendChild(cell);
+    }
+    boardEl.appendChild(rowEl);
+  }
+}
+
+function buildKeyboard(){
+  keyEls={};
+  const layout=[
+    ['ㅂ','ㅈ','ㄷ','ㄱ','ㅅ','ㅛ','ㅕ','ㅑ'],
+    ['ㅁ','ㄴ','ㅇ','ㄹ','ㅎ','ㅗ','ㅓ','ㅏ','ㅣ'],
+    ['ㅋ','ㅌ','ㅊ','ㅍ','ㅠ','ㅜ','ㅡ']
+  ];
+  keyboardEl.innerHTML='';
+  layout.forEach(row=>{
+    const rowEl=document.createElement('div');
+    rowEl.className='kb-row';
+    row.forEach(k=>{
+      const btn=document.createElement('button');
+      btn.className='key';btn.textContent=k;btn.dataset.key=k;
+      btn.addEventListener('click',()=>onKey(k));
+      keyEls[k]=btn;rowEl.appendChild(btn);
+    });
+    keyboardEl.appendChild(rowEl);
+  });
+  const bottom=document.createElement('div');
+  bottom.className='kb-row';
+  const back=document.createElement('button');
+  back.className='key back';back.textContent='⌫';
+  back.addEventListener('click',()=>onKey('Backspace'));
+  const enter=document.createElement('button');
+  enter.className='key enter';enter.textContent='확인';
+  enter.addEventListener('click',()=>onKey('Enter'));
+  bottom.append(back,enter);
+  keyboardEl.appendChild(bottom);
+}
+
 async function submitGuess(){
   if(gameOver) return;
   if(currentJamos.length!==COLS){showToast('5칸을 채워주세요');return;}
@@ -877,27 +939,34 @@ async function submitGuess(){
   if(!isValidWord(word)){showToast('사전에 없는 단어예요');shakeRow();return;}
   const guessJamos=[...currentJamos];
   const evalRes=evaluate(guessJamos,answerJamos);
-    const result=await rootRef.transaction(current=>{
-      if(!current) return;
-      const currentId=current[SHARED_CURRENT_ID];
-      const entry=current?.[SHARED_ENTRIES]?.[currentId];
-      if(!entry||entry.solved||entry.word!==answer) return;
-      return {
-        ...current,
-        [SHARED_CURRENT_ID]:nextKey,
-        [SHARED_ENTRIES]:{
-          ...current[SHARED_ENTRIES],
-          [currentId]:{
-            ...entry,
-            solved:true,
-            solvedBy:name,
-            solvedAt:new Date().toISOString(),
-            updatedAt:new Date().toISOString()
-          },
-          [nextKey]:newEntry
-        }
-      };
-    });
+  results.push(evalRes.map(s=>s==='correct'?'correct':s==='present'?'present':'absent'));
+  const cells=[];
+  for(let c=0;c<COLS;c++){
+    const cell=document.querySelector(`.cell[data-row="${row}"][data-col="${c}"]`);
+    cells.push(cell);
+    cell.classList.remove('current');
+    setTimeout(()=>{
+      cell.classList.add('flip',evalRes[c]);
+      cell.classList.remove('filled');
+      const k=guessJamos[c];
+      if(keyEls[k]){
+        const prev=keyEls[k].classList;
+        const rank={absent:1,present:2,correct:3};
+        const cur=evalRes[c];
+        const old=prev.contains('correct')?'correct':prev.contains('present')?'present':prev.contains('absent')?'absent':'';
+        const oldRank=old?rank[old]:0;
+        if(rank[cur]>oldRank){keyEls[k].classList.remove('correct','present','absent');keyEls[k].classList.add(cur);}
+      }
+    },c*300);
+  }
+  const won=evalRes.every(s=>s==='correct');
+  setTimeout(()=>{
+    if(won) endGame(true);
+    else if(row>=ROWS-1) endGame(false);
+    else{row++;currentJamos=[];updateCurrentRow();}
+    saveProgress();
+  },COLS*300+200);
+}
 function shakeRow(){
   const rowEl=document.querySelector(`.row[data-row="${row}"]`);
   rowEl.style.animation='none';
@@ -948,7 +1017,17 @@ async function endGame(won){
   document.getElementById('resultWord').textContent=answer;
   document.getElementById('resultEmoji').textContent=shareText;
   document.getElementById('resultModal').classList.add('show');
-  messageEl.textContent=won? (isFirstSolver ? '축하합니다!' : '축하합니다!') : '정답: '+answer;
+  if(won){
+    if(isFirstSolver){
+      messageEl.textContent='🎉 축하합니다! 오늘의 첫 정답자입니다!';
+    }else if(firstSolverName){
+      messageEl.textContent='아쉽다. 다음엔 더 빨리 정답 맞춰라...';
+    }else{
+      messageEl.textContent='축하합니다!';
+    }
+  }else{
+    messageEl.textContent='정답: '+answer;
+  }
   messageEl.classList.toggle('congrats', won);
 }
 
@@ -963,12 +1042,6 @@ function buildShareText(includeTitle=true, opts={}){
   const d=new Date();
   const date=`${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
   let text='';
-  if(isFirst){
-    text += 'WINNER\n';
-  } else {
-    // for non-first shared solvers, we'll not include the date/title line when firstName is provided
-    if(!firstName && includeTitle) text += `오늘의 단어 ${date}\n`;
-  }
   text += won?`${results.length}/6\n`:`X/6\n`;
   text += lines.join('\n');
   if(!isFirst && firstName){
@@ -1033,9 +1106,25 @@ function periodStart(kind){
   return new Date(0);
 }
 
-async function renderLeaderboard(kind){
-  const container=document.getElementById('leaderboardList');
+async function renderLeaderboard(kind, containerId='leaderboardList'){
+  const container=document.getElementById(containerId);
   container.innerHTML='로딩 중...';
+  // Update tab active states based on containerId
+  if(containerId==='leaderboardList'){
+    document.getElementById('lbDay')?.classList.remove('active');
+    document.getElementById('lbWeek')?.classList.remove('active');
+    document.getElementById('lbMonth')?.classList.remove('active');
+    if(kind==='day') document.getElementById('lbDay')?.classList.add('active');
+    else if(kind==='week') document.getElementById('lbWeek')?.classList.add('active');
+    else if(kind==='month') document.getElementById('lbMonth')?.classList.add('active');
+  }else if(containerId==='leaderboardModalList'){
+    document.getElementById('lbModalDay')?.classList.remove('active');
+    document.getElementById('lbModalWeek')?.classList.remove('active');
+    document.getElementById('lbModalMonth')?.classList.remove('active');
+    if(kind==='day') document.getElementById('lbModalDay')?.classList.add('active');
+    else if(kind==='week') document.getElementById('lbModalWeek')?.classList.add('active');
+    else if(kind==='month') document.getElementById('lbModalMonth')?.classList.add('active');
+  }
   if(!firebaseReady || !firebaseDb){ container.innerHTML='(데이터 없음)'; return; }
   try{
     const snap = await firebaseDb.ref(`${SHARED_DB_PATH}/${SHARED_ENTRIES}`).once('value');
@@ -1058,9 +1147,13 @@ async function renderLeaderboard(kind){
   }catch(e){ console.warn(e); container.innerHTML='불러오기 실패'; }
 }
 
-document.getElementById('lbDay').addEventListener('click',()=>{ renderLeaderboard('day'); });
-document.getElementById('lbWeek').addEventListener('click',()=>{ renderLeaderboard('week'); });
-document.getElementById('lbMonth').addEventListener('click',()=>{ renderLeaderboard('month'); });
+document.getElementById('lbDay')?.addEventListener('click',()=>{ renderLeaderboard('day'); });
+document.getElementById('lbWeek')?.addEventListener('click',()=>{ renderLeaderboard('week'); });
+document.getElementById('lbMonth')?.addEventListener('click',()=>{ renderLeaderboard('month'); });
+document.getElementById('btnLeaderboard')?.addEventListener('click',()=>{ renderLeaderboard('day','leaderboardModalList'); document.getElementById('leaderboardModal').classList.add('show'); });
+document.getElementById('lbModalDay')?.addEventListener('click',()=>{ renderLeaderboard('day','leaderboardModalList'); });
+document.getElementById('lbModalWeek')?.addEventListener('click',()=>{ renderLeaderboard('week','leaderboardModalList'); });
+document.getElementById('lbModalMonth')?.addEventListener('click',()=>{ renderLeaderboard('month','leaderboardModalList'); });
 
 function resetBoard(){
   row=0;currentJamos=[];gameOver=false;results=[];
