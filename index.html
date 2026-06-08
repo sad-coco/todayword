@@ -11,16 +11,16 @@
       --green:#6AAA64;--yellow:#E8B931;--gray:#B0B3B8;--gray-dark:#787C7E;
       --border:#D9D9D9;--shadow:0 2px 8px rgba(0,0,0,.08);
     }
-    body{font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;background:var(--bg);color:var(--kakao-dark);min-height:100vh;display:flex;flex-direction:column;touch-action:manipulation;overflow:hidden}
+    body{font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;background:var(--bg);color:var(--kakao-dark);height:100vh;display:flex;flex-direction:column;touch-action:manipulation;overflow:hidden}
     header{background:var(--kakao);padding:14px 16px;display:flex;align-items:center;justify-content:space-between;box-shadow:var(--shadow);position:sticky;top:0;z-index:10}
     header h1{font-size:18px;font-weight:700}
     .header-btns{display:flex;gap:8px}
     .icon-btn{width:36px;height:36px;border:none;border-radius:50%;background:rgba(60,30,30,.1);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center}
-    main{flex:1 1 auto;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:16px 12px 8px;max-width:528px;margin:0 auto;width:100%;min-height:0;overflow:hidden}
-    .info{text-align:center;font-size:13px;color:#666;margin-bottom:12px;line-height:1.5}
-    .board{flex:1 1 auto;display:grid;grid-template-rows:repeat(6,1fr);gap:4px;margin:0 auto 12px;width:min(100%,320px);min-height:0;max-height:240px}
-    .row{display:grid;grid-template-columns:repeat(5,1fr);gap:4px}
-    .cell{aspect-ratio:1;border:2px solid var(--border);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:clamp(14px,4vw,18px);font-weight:700;background:var(--white);transition:transform .15s,border-color .2s,background .2s,color .2s}
+    main{flex:1 1 auto;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:12px 10px 8px;max-width:360px;margin:0 auto;width:100%;min-height:0;overflow:hidden}
+    .info{text-align:center;font-size:12px;color:#666;margin-bottom:10px;line-height:1.4}
+    .board{flex:1 1 auto;display:grid;grid-template-rows:repeat(6,1fr);gap:3px;margin:0 auto 10px;width:260px;max-width:100%;min-height:0;max-height:240px}
+    .row{display:grid;grid-template-columns:repeat(5,1fr);gap:3px;width:100%}
+    .cell{aspect-ratio:1;border:2px solid var(--border);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;line-height:1;font-weight:700;background:var(--white);transition:transform .15s,border-color .2s,background .2s,color .2s}
     .cell.filled{border-color:#999}
     .cell.flip{animation:flip .5s ease}
     @keyframes flip{0%{transform:rotateX(0)}50%{transform:rotateX(90deg)}100%{transform:rotateX(0)}}
@@ -29,7 +29,7 @@
     .cell.absent{background:var(--gray);border-color:var(--gray);color:#fff}
     .cell.current{border-color:var(--kakao-dark)}
     .message{min-height:24px;font-size:14px;font-weight:600;text-align:center;margin-bottom:8px;color:#c0392b}
-    .keyboard{width:100%;max-width:528px;margin:0 auto;padding:8px 8px 12px;background:var(--white);border-top:1px solid var(--border);flex:0 0 240px;display:flex;flex-direction:column;justify-content:center}
+    .keyboard{width:100%;max-width:360px;margin:0 auto;padding:8px 8px 12px;background:var(--white);border-top:1px solid var(--border);flex:0 0 180px;display:flex;flex-direction:column;justify-content:center}
     .kb-row{display:flex;justify-content:center;gap:4px;margin-bottom:5px}
     .key{min-width:0;flex:1;max-width:34px;height:44px;border:none;border-radius:6px;background:#E8E8E8;font-size:15px;font-weight:600;color:var(--kakao-dark);cursor:pointer;user-select:none;-webkit-tap-highlight-color:transparent}
     .key.wide{flex:1.6;max-width:56px;font-size:12px}
@@ -41,9 +41,9 @@
     .key:active{transform:scale(.95)}
     .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:100;align-items:center;justify-content:center;padding:16px}
     @media(max-width:520px){
-      .board{width:min(100%,320px);max-height:calc(100vh - 240px);}
+      .board{width:260px;max-width:100%;max-height:calc(100vh - 220px);}
       .keyboard{max-width:100%;flex:0 0 160px;padding:6px 6px 8px;}
-      .cell{font-size:clamp(13px,3.5vw,16px)}
+      .cell{font-size:14px}
       .key{max-width:24px;height:36px;font-size:12px}
       .key.enter{max-width:56px}
       .key.back{max-width:46px}
