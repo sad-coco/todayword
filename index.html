@@ -32,7 +32,7 @@
     .cell.absent{background:var(--gray);border-color:var(--gray);color:#fff}
     .cell.current{border-color:var(--kakao-dark)}
     .message{min-height:24px;font-size:14px;font-weight:600;text-align:center;margin-bottom:8px;color:#c0392b}
-    .message.congrats{background:linear-gradient(135deg,#ffe066,#ff8a65);color:#7f1d1d;padding:12px 16px;border-radius:16px;box-shadow:0 18px 36px rgba(255,138,101,.24);border:1px solid rgba(255,255,255,.8);display:inline-flex;align-items:center;justify-content:center;min-height:auto;margin-bottom:12px;text-shadow:0 1px 2px rgba(0,0,0,.12);}
+    .message.congrats,.message.failed{background:linear-gradient(135deg,#ffe066,#ff8a65);color:#7f1d1d;padding:12px 16px;border-radius:16px;box-shadow:0 18px 36px rgba(255,138,101,.24);border:1px solid rgba(255,255,255,.8);display:inline-flex;align-items:center;justify-content:center;min-height:auto;margin-bottom:12px;text-shadow:0 1px 2px rgba(0,0,0,.12);}
     .keyboard{width:100%;max-width:360px;margin:0 auto;padding:10px 10px 14px;background:var(--white);border-top:1px solid var(--border);flex:0 0 auto;display:flex;flex-direction:column;justify-content:center;overflow:hidden}
     .kb-row{display:flex;justify-content:center;gap:5px;margin-bottom:6px;min-width:0}
     .key{min-width:0;flex:1 1 0;max-width:44px;height:42px;border:none;border-radius:10px;background:#E8E8E8;font-size:15px;font-weight:700;color:var(--kakao-dark);cursor:pointer;user-select:none;-webkit-tap-highlight-color:transparent;box-shadow:0 4px 10px rgba(0,0,0,.08);transition:transform .15s,background .2s}
@@ -430,136 +430,524 @@ async function promptPlayerName(){
   openNameModal('');
   return existing;
 }
-const EMBEDDED_WORDS=`학교
-대박
-사랑
-친구
-감자
-딸기
-공부
-축구
-김치
-라면
-구름
-고양
-이별
-선물
-생일
-기념
-기름
-추억
-여행
-캠핑
-등산
-수영
-달리
-노래
-그림
-글씨
-연필
+const EMBEDDED_WORDS=`가게
+가격
+가공
+가난
+가담
+가득
+가락
+가래
+가량
+가면
+가문
+가발
 가방
-운동
-독서
-영화
-게임
-바둑
-당구
-볼링
-낚시
-쿠키
-와플
-감귤
-수박
-명절
-설날
-추석
-항구
-문어
-송편
-떡국
-잡채
-숙주
-상추
-양파
-마늘
-소풍
-달빛
-햇살
-눈물
-인사
+가상
+가슴
+가위
+가을
+가장
+가정
+가족
+가죽
+각도
+각자
+간부
+간지
+간호
+갈비
+감기
 감사
-축하
-꿈결
-별빛
-웃음
-기쁨
-슬픔
-분노
-용기
-희망
-감동
-자유
-평화
-건강
-안녕
-성공
-실패
-노력
-도전
-열정
-집중
-인내
-겸손
-정직
-친절
-배려
-존중
-신뢰
-약속
-책임
-권리
-법률
-규칙
-질서
-안전
-위험
+감소
+감시
+감자
+강도
+강사
+강수
+강요
+강추
+강호
+개그
+개미
+거래
+거실
+거울
+거절
+거점
+거짓
+거품
+건너
+건조
+검사
+검토
+겨울
 경고
-출발
-도착
-환영
-만남
-재회
-협력
-경쟁
-승리
-패배
+경기
+경비
+경우
+경주
+고급
+고등
+고래
+고립
+고민
+고속
+고압
+고양
+고열
+고용
+고인
+고장
+고정
+고질
+고집
+고통
+고향
+골프
+공기
+공부
+공유
+공포
+과거
+과자
+교복
+교실
+교육
+교재
+교정
+교직
+교통
+교회
+구간
+구경
+구글
+구독
+구름
+구멍
+구분
+구상
+구석
+구성
+구속
+구슬
+구역
+구인
+구입
+구직
+구청
+구출
+국가
+국수
+귀가
+규정
+규칙
+그늘
+그룹
+그릇
+그림
+근무
+글자
+금지
+기계
+기념
+기능
+기대
+기록
+기름
+기린
+기법
+기본
+기분
+기상
+기술
+기억
+기업
+기온
+기운
+기적
+기준
+기한
 기회
-위기
-전환
-변화
-발전
-성장
-진보
-혁신
-창의
-상상
-현실
-이상
+길이
+김치
+까치
+꼬마
+꼬리
+꼬치
+끼리
+나눔
+나중
+나팔
+낙서
+낚시
+남녀
+남부
+남아
+남자
+노동
+노래
+노력
+녹차
+농구
+농사
+눈치
+다섯
+다음
+단가
+단기
+단어
+단추
+달러
+달리
+당구
+대가
+더욱
+더위
+데모
+도감
+도난
+도둑
+도망
+도심
+도안
+도입
+도장
+도전
+도착
+독도
+독서
+동기
+동료
+동시
+동요
+두통
+따로
+라면
+로봇
+마감
+마늘
+마당
+마법
+마을
+마음
+마침
+만두
+매너
+먹이
+먼지
+메뉴
+메모
+모금
+모래
+모임
+모험
 목표
-계획
-실행
-완성
-결과
-원인
-방법
+무게
+무대
+무덤
+무릎
+문구
+문서
+문어
+문자
+물가
+물리
+미국
+미래
+미역
+바늘
+바둑
+바람
+바위
+박수
+반지
+발표
+발효
+방지
+방치
+배구
+배려
+배우
+배추
+배치
+버전
+번호
+변호
+보건
+보물
+보상
+보석
+보안
+보육
+보증
+보통
+보험
+부담
+부동
+부산
+부상
+부엌
+부족
+부착
+부탁
+부품
+분노
+분리
+비결
+비밀
+비옷
+비용
+비율
+비판
+비평
+빙수
+뿌리
+사건
+사과
+사람
+사랑
+사망
+사슴
+사연
+사장
+사전
+사진
+사탕
+사회
+상자
+상처
+상추
+서랍
+서명
+서민
+서양
+서울
+서적
+서점
+선거
+선호
+설사
+세수
+소금
+소문
+소방
+소설
+소송
+소식
+소장
+소통
+소풍
+속도
+송이
+수건
 수단
-도구
+수면
+수박
+수술
+수업
+수영
+수입
+수정
+수첩
+수출
+수학
+숙소
+숙주
+순서
+승리
+쓰기
+시간
+시계
+시골
+시선
+시설
+시작
+시장
+시점
+시청
+식구
+식사
+신고
+신부
+신호
+실수
+아내
+아동
+아들
+아빠
+아침
+악기
+안부
+야채
+양보
+양파
+엄마
+업무
+여름
+여성
+역사
+연구
+연기
+열기
+열차
+영어
+예고
+오늘
+오락
+오빠
+오전
+오직
+오해
+요금
+요일
+요즘
+요청
+용기
+용도
+용어
+용지
+우동
+우산
+우선
+우연
+우울
+우정
+우편
+위기
+위치
+유명
+유산
+유통
+의도
+의료
+의류
+의무
+의미
+의사
+의자
+이론
+이름
+이별
+이불
+이상
+이성
+이슬
+이용
+이웃
+이익
+이전
+이제
+인구
+인기
+인사
+일기
+일부
+일주
+자격
+자극
+자금
+자랑
+자매
+자본
+자산
+자석
+자신
+자율
+자장
+작가
+장기
+장르
+장미
+장비
+장소
 재료
-성분
-요소
+재미
+저금
+저녁
+저장
+전구
+전기
+전부
+전자
+정리
+정보
+정부
+정치
+제도
+제주
+조각
 조건
-환경
-상황`;
+조심
+조언
+조율
+조직
+종이
+주말
+주먹
+주문
+주민
+주방
+주의
+주인
+중요
+지갑
+지금
+지능
+지붕
+지식
+지역
+지적
+진보
+질서
+차량
+차별
+참여
+참조
+처방
+천사
+청소
+초과
+초대
+초밥
+초안
+초점
+최고
+추석
+추억
+추위
+추천
+축구
+축하
+출구
+출처
+취미
+치과
+치킨
+친구
+짜기
+카페
+탁자
+태도
+토끼
+편지
+포장
+표정
+필수
+필요
+하늘
+학교
+항구
+향기
+혼자
+홍보
+회사
+효과
+효율
+후식
+후회
+휴대
+휴식`;
 
 function splitCho(c){return CHO_SPLIT[c]||[c];}
 function splitJung(j){return JUNG_SPLIT[j]||[j];}
@@ -800,7 +1188,7 @@ function loadStats(){
 function defaultStats(){return{played:0,won:0,streak:0,maxStreak:0,distribution:[0,0,0,0,0,0]};}
 function saveStats(s){localStorage.setItem(STATS_KEY,JSON.stringify(s));}
 
-let words=[],guessWords=new Set(),answer='',answerJamos=[],row=0,currentJamos=[],gameOver=false,results=[];
+let words=[],guessWords=new Set(),guessJamoKeys=new Set(),answer='',answerJamos=[],row=0,currentJamos=[],gameOver=false,results=[];
 let keyEls={},gameMode='daily';
 let isFirstSolver=false;
 let firstSolverName='';
@@ -864,43 +1252,6 @@ function buildKeyboard(){
   keyboardEl.appendChild(bottom);
 }
 
-async function submitGuess(){
-  if(gameOver) return;
-  if(currentJamos.length!==COLS){showToast('5칸을 채워주세요');return;}
-  const word=compose(currentJamos);
-  if(!word){showToast('올바른 단어가 아니에요');shakeRow();return;}
-  if(!isValidWord(word)){showToast('사전에 없는 단어예요');shakeRow();return;}
-  const guessJamos=[...currentJamos];
-  const evalRes=evaluate(guessJamos,answerJamos);
-  results.push(evalRes.map(s=>s==='correct'?'correct':s==='present'?'present':'absent'));
-  const cells=[];
-  for(let c=0;c<COLS;c++){
-    const cell=document.querySelector(`.cell[data-row="${row}"][data-col="${c}"]`);
-    cells.push(cell);
-    cell.classList.remove('current');
-    setTimeout(()=>{
-      cell.classList.add('flip',evalRes[c]);
-      cell.classList.remove('filled');
-      const k=guessJamos[c];
-      if(keyEls[k]){
-        const prev=keyEls[k].classList;
-        const rank={absent:1,present:2,correct:3};
-        const cur=evalRes[c];
-        const old=prev.contains('correct')?'correct':prev.contains('present')?'present':prev.contains('absent')?'absent':'';
-        const oldRank=old?rank[old]:0;
-        if(rank[cur]>oldRank){keyEls[k].classList.remove('correct','present','absent');keyEls[k].classList.add(cur);}
-      }
-    },c*300);
-  }
-  const won=evalRes.every(s=>s==='correct');
-  setTimeout(()=>{
-    if(won) endGame(true);
-    else if(row>=ROWS-1) endGame(false);
-    else{row++;currentJamos=[];updateCurrentRow();}
-    saveProgress();
-  },COLS*300+200);
-}
-
 function updateCurrentRow(){
   for(let c=0;c<COLS;c++){
     const cell=document.querySelector(`.cell[data-row="${row}"][data-col="${c}"]`);
@@ -925,6 +1276,18 @@ function onKey(key){
   messageEl.textContent='';
 }
 
+function jamoKey(jamos){
+  return jamos.join('');
+}
+
+function buildGuessJamoKeys(wordSet){
+  return new Set([...wordSet].map(word=>jamoKey(decompose(word))));
+}
+
+function isValidJamos(jamos){
+  return jamos.length===COLS && guessJamoKeys.has(jamoKey(jamos));
+}
+
 function isValidWord(word){
   if(!word||!/^[가-힣]+$/.test(word)) return false;
   if(decompose(word).length!==COLS) return false;
@@ -936,7 +1299,7 @@ async function submitGuess(){
   if(currentJamos.length!==COLS){showToast('5칸을 채워주세요');return;}
   const word=compose(currentJamos);
   if(!word){showToast('올바른 단어가 아니에요');shakeRow();return;}
-  if(!isValidWord(word)){showToast('사전에 없는 단어예요');shakeRow();return;}
+  if(!isValidWord(word)&&!isValidJamos(currentJamos)){showToast('사전에 없는 단어예요');shakeRow();return;}
   const guessJamos=[...currentJamos];
   const evalRes=evaluate(guessJamos,answerJamos);
   results.push(evalRes.map(s=>s==='correct'?'correct':s==='present'?'present':'absent'));
@@ -1014,7 +1377,9 @@ async function endGame(won){
     shareText = buildShareText();
   }
   document.getElementById('resultTitle').textContent=showTitle;
-  document.getElementById('resultWord').textContent=answer;
+  const resultWordEl=document.getElementById('resultWord');
+  resultWordEl.textContent=won?answer:'';
+  resultWordEl.style.display=won?'block':'none';
   document.getElementById('resultEmoji').textContent=shareText;
   document.getElementById('resultModal').classList.add('show');
   if(won){
@@ -1026,9 +1391,10 @@ async function endGame(won){
       messageEl.textContent='축하합니다!';
     }
   }else{
-    messageEl.textContent='정답: '+answer;
+    messageEl.textContent='아쉬워요. 다음에 다시 도전해요!';
   }
   messageEl.classList.toggle('congrats', won);
+  messageEl.classList.toggle('failed', !won);
 }
 
 function buildShareText(includeTitle=true, opts={}){
@@ -1159,7 +1525,7 @@ function resetBoard(){
   row=0;currentJamos=[];gameOver=false;results=[];
   document.querySelectorAll('.cell').forEach(c=>{c.textContent='';c.className='cell';});
   messageEl.textContent='';
-  messageEl.classList.remove('congrats');
+  messageEl.classList.remove('congrats','failed');
 }
 
 function randomIndex(len){
@@ -1233,6 +1599,7 @@ async function init(){
   await initFirebase();
   words=await loadAnswerWords();
   guessWords=await loadGuessWords();
+  guessJamoKeys=buildGuessJamoKeys(guessWords);
   if(!words.length){messageEl.textContent='단어 목록을 불러올 수 없습니다.';return;}
   await syncSharedWord();
   if(firebaseReady && currentSharedInfo) gameMode='shared';
@@ -1266,8 +1633,9 @@ async function init(){
         });
         if(!gameOver) currentJamos=data.current||[];
         else {
-          messageEl.textContent=data.won?'축하합니다!':'정답: '+answer;
+          messageEl.textContent=data.won?'축하합니다!':'아쉬워요. 다시 도전하세요!';
           messageEl.classList.toggle('congrats', !!data.won);
+          messageEl.classList.toggle('failed', !data.won);
         }
       }
     }catch(e){}
