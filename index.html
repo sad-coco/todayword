@@ -1460,6 +1460,7 @@ async function shareLeaderboard(){
 
   rows.slice(0,5).forEach((item,idx)=>{
     text += `${idx+1}. ${item.name} (${item.count}회)\n`;
+    text = text.trim();
   });
 
   if(navigator.share){
