@@ -337,6 +337,8 @@ async function claimSharedWord(){
   if(!firebaseReady||!answer) return {committed:false, firstSolverName:''};
   const name=loadPlayerName()||'익명';
   const rootRef=firebaseDb.ref(SHARED_DB_PATH);
+  // Insert solveTime calculation before transaction
+  const solveTime=new Date(Date.now() + (row * 1000)).toISOString();
   try{
     const nextKey=firebaseDb.ref(`${SHARED_DB_PATH}/${SHARED_ENTRIES}`).push().key;
     const nextWord=pickRandomAnswer();
@@ -355,7 +357,7 @@ async function claimSharedWord(){
             ...entry,
             solved:true,
             solvedBy:name,
-            solvedAt:new Date().toISOString(),
+            solvedAt:solveTime,
             updatedAt:new Date().toISOString()
           },
           [nextKey]:newEntry
