@@ -1459,10 +1459,10 @@ async function shareLeaderboard(){
   let text=titleMap[leaderboardPeriod]+'\n\n';
 
   rows.slice(0,5).forEach((item,idx)=>{
-    text += `${idx+1}. ${item.name} (${item.count}회)\n`;
-    text = text.trim();
+    text += `${idx+1}. ${item.name} (${item.count}회)\n`;  
   });
-
+  text = text.trim();
+  
   if(navigator.share){
     try{
       await navigator.share({
